@@ -1,0 +1,586 @@
+const express = require('express');
+const connection = require('../connection');
+const router = express.Router();
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
+require('dotenv').config();
+
+// ==========================================
+// UTILITÁRIOS
+// ==========================================
+
+/**
+ * Executa uma query MySQL como Promise, eliminando callback hell.
+ */
+const query = (sql, params = []) =>
+    new Promise((resolve, reject) =>
+        connection.query(sql, params, (err, results) =>
+            err ? reject(err) : resolve(results)
+        )
+    );
+
+/**
+ * Validação de e-mail simples.
+ */
+const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+/**
+ * Wrapper assíncrono — evita try/catch repetido em cada rota.
+ */
+const asyncHandler = (fn) => (req, res, next) =>
+    Promise.resolve(fn(req, res, next)).catch(next);
+
+// ==========================================
+// MIDDLEWARES DE SEGURANÇA
+// ==========================================
+
+const authenticateToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) return res.status(401).json({ message: 'Acesso negado. Faça login.' });
+
+    jwt.verify(token, process.env.ACESS_TOKEN, (err, user) => {
+        if (err) return res.status(403).json({ message: 'Token inválido ou expirado.' });
+        req.user = user;
+        next();
+    });
+};
+
+const isAdmin = (req, res, next) => {
+    if (!req.user || req.user.perfil !== 'admin') {
+        return res.status(403).json({ message: 'Acesso restrito apenas para administradores.' });
+    }
+    next();
+};
+
+// ==========================================
+// CONFIGURAÇÃO DE E-MAIL
+// ==========================================
+
+const transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    auth: {
+        user: process.env.EMAIL,
+        pass: process.env.PASSWORD
+    }
+});
+
+// ==========================================
+// ROTAS PÚBLICAS
+// ==========================================
+
+/**
+ * POST /signup
+ * Registra um novo usuário e avisa o administrador por e-mail.
+ */
+router.post('/signup', asyncHandler(async (req, res) => {
+    const { nome, email, password, senha, perfil } = req.body;
+    const senhaRaw = password || senha;
+
+    // 1. Validações de entrada (mantidas do seu código)
+    if (!nome?.trim()) return res.status(400).json({ message: 'Nome é obrigatório.' });
+    if (!isValidEmail(email)) return res.status(400).json({ message: 'E-mail inválido.' });
+    if (!senhaRaw || senhaRaw.length < 6)
+        return res.status(400).json({ message: 'Senha deve ter no mínimo 6 caracteres.' });
+
+    const existente = await query('SELECT id FROM user WHERE email = ?', [email]);
+    if (existente.length > 0)
+        return res.status(409).json({ message: 'Este e-mail já está cadastrado.' });
+
+    const salt = await bcrypt.genSalt(10);
+    const senhaHash = await bcrypt.hash(senhaRaw, salt);
+
+    // 2. Insere no banco (aprovado = 0)
+    await query(
+        'INSERT INTO user (nome, email, senha, aprovado, perfil) VALUES (?, ?, ?, 0, ?)',
+        [nome.trim(), email.toLowerCase(), senhaHash, perfil || 'user1']
+    );
+
+    // 3. ENVIO DE E-MAIL PARA O ADMINISTRADOR (A parte que estava faltando)
+    try {
+        await transporter.sendMail({
+            from: process.env.EMAIL, // Seu e-mail configurado no .env
+            to: process.env.EMAIL,   // Envia para você mesmo (admin)
+            subject: 'Novo Usuário Aguardando Aprovação',
+            html: `
+                <div style="font-family: sans-serif;">
+                    <h2>Solicitação de Novo Cadastro</h2>
+                    <p>Um novo usuário se registrou e está aguardando sua aprovação no painel.</p>
+                    <ul>
+                        <li><strong>Nome:</strong> ${nome}</li>
+                        <li><strong>E-mail:</strong> ${email}</li>
+                        <li><strong>Perfil solicitado:</strong> ${perfil || 'user1'}</li>
+                    </ul>
+                    <p>Acesse o painel administrativo para aprovar ou rejeitar.</p>
+                    <a href="http://localhost:8100/admin-panel" 
+                       style="background-color: #2dd36f; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;">
+                       Ir para Painel Admin
+                    </a>
+                </div>
+            `
+        });
+    } catch (mailError) {
+        // Logamos o erro mas não travamos o cadastro, pois o usuário já foi pro banco
+        console.error('Erro ao enviar e-mail de aviso ao admin:', mailError);
+    }
+
+    return res.status(201).json({ message: 'Registrado com sucesso. Aguarde aprovação.' });
+}));
+
+/**
+ * POST /login
+ * Autentica usuário e retorna JWT.
+ */
+router.post('/login', asyncHandler(async (req, res) => {
+    const { email, password, senha } = req.body;
+    const senhaRaw = password || senha;
+
+    if (!email || !senhaRaw)
+        return res.status(400).json({ message: 'E-mail e senha são obrigatórios.' });
+
+    const results = await query(
+        'SELECT id, nome, email, senha, aprovado, perfil FROM user WHERE email = ?',
+        [email.toLowerCase()]
+    );
+
+    if (results.length === 0)
+        return res.status(401).json({ message: 'Credenciais inválidas.' });
+
+    const user = results[0];
+    const senhaOk = await bcrypt.compare(senhaRaw, user.senha);
+
+    if (!senhaOk)
+        return res.status(401).json({ message: 'Credenciais inválidas.' });
+
+    if (user.aprovado === 0)
+        return res.status(403).json({ message: 'Aguarde aprovação do administrador.' });
+
+    const payload = { id: user.id, nome: user.nome, email: user.email, perfil: user.perfil };
+    const accessToken = jwt.sign(payload, process.env.ACESS_TOKEN, { expiresIn: '8h' });
+
+    return res.status(200).json({ token: accessToken });
+}));
+
+/**
+ * POST /forgotPassword
+ * Envia link de redefinição de senha por e-mail.
+ */
+router.post('/forgotPassword', asyncHandler(async (req, res) => {
+    const { email } = req.body;
+
+    if (!isValidEmail(email))
+        return res.status(400).json({ message: 'E-mail inválido.' });
+
+    const results = await query('SELECT email FROM user WHERE email = ?', [email.toLowerCase()]);
+
+    // Sempre retorna 200 para não revelar se o e-mail existe (segurança)
+    if (results.length === 0)
+        return res.status(200).json({ message: 'Se o e-mail existir, o link foi enviado.' });
+
+    const resetToken = jwt.sign({ email }, process.env.ACESS_TOKEN, { expiresIn: '15m' });
+    const resetLink = `http://localhost:8100/reset-password?token=${resetToken}`;
+
+    await transporter.sendMail({
+        from: process.env.EMAIL,
+        to: email,
+        subject: 'Redefinição de Senha',
+        html: `
+            <h3>Redefinição de Senha</h3>
+            <p>Clique no link abaixo para redefinir sua senha. O link expira em 15 minutos.</p>
+            <a href="${resetLink}">Redefinir Senha</a>
+            <p>Se você não solicitou isso, ignore este e-mail.</p>
+        `
+    });
+
+    return res.status(200).json({ message: 'Se o e-mail existir, o link foi enviado.' });
+}));
+
+// Rota para salvar a nova senha
+router.post('/resetPassword', asyncHandler(async (req, res) => {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+        return res.status(400).json({ message: 'Dados insuficientes.' });
+    }
+
+    try {
+        // 1. Verifica se o token é válido e decodifica
+        const decoded = jwt.verify(token, process.env.ACESS_TOKEN);
+        const email = decoded.email;
+
+        // 2. Criptografa a nova senha (Importante usar bcrypt!)
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+        // 3. Atualiza no banco de dados
+        await query('UPDATE user SET password = ? WHERE email = ?', [hashedPassword, email]);
+
+        return res.status(200).json({ message: 'Senha atualizada com sucesso!' });
+
+    } catch (error) {
+        return res.status(401).json({ message: 'O link de recuperação expirou ou é inválido.' });
+    }
+}));
+
+// ==========================================
+// ROTAS DO USUÁRIO (PERFIL)
+// ==========================================
+
+/**
+ * PATCH /update-perfil
+ * Atualiza nome do usuário autenticado.
+ */
+router.patch('/update-perfil', authenticateToken, asyncHandler(async (req, res) => {
+    const { nome } = req.body;
+
+    if (!nome?.trim())
+        return res.status(400).json({ message: 'Nome não pode ser vazio.' });
+
+    await query('UPDATE user SET nome = ? WHERE email = ?', [nome.trim(), req.user.email]);
+    return res.status(200).json({ message: 'Perfil atualizado com sucesso!' });
+}));
+
+/**
+ * DELETE /delete-me
+ * Exclui a própria conta do usuário autenticado.
+ */
+router.delete('/delete-me', authenticateToken, asyncHandler(async (req, res) => {
+    await query('DELETE FROM user WHERE email = ?', [req.user.email]);
+    return res.status(200).json({ message: 'Conta excluída com sucesso.' });
+}));
+
+// ==========================================
+// ROTAS DE ADMIN — APROVAÇÕES
+// ==========================================
+
+/**
+ * GET /pendentes
+ * Lista usuários aguardando aprovação.
+ */
+router.get('/pendentes', authenticateToken, isAdmin, asyncHandler(async (req, res) => {
+    const results = await query(
+        'SELECT id, nome, email, perfil FROM user WHERE aprovado = 0 ORDER BY id DESC'
+    );
+    return res.status(200).json(results);
+}));
+
+/**
+ * PATCH /aprovar
+ * Aprova um usuário pelo ID e envia e-mail de confirmação.
+ */
+router.patch('/aprovar', authenticateToken, isAdmin, asyncHandler(async (req, res) => {
+    const { id } = req.body;
+
+    if (!id) return res.status(400).json({ message: 'ID é obrigatório.' });
+
+    // 1. Primeiro, buscamos os dados do usuário para ter o e-mail e o nome
+    const users = await query('SELECT nome, email FROM user WHERE id = ?', [id]);
+
+    if (users.length === 0) {
+        return res.status(404).json({ message: 'Usuário não encontrado.' });
+    }
+
+    const usuarioAprovado = users[0];
+
+    // 2. Atualizamos o status para aprovado no banco de dados
+    const result = await query('UPDATE user SET aprovado = 1 WHERE id = ?', [id]);
+
+    // 3. Enviamos o e-mail de notificação para o usuário
+    try {
+        await transporter.sendMail({
+            from: process.env.EMAIL,
+            to: usuarioAprovado.email,
+            subject: 'Sua conta foi aprovada!',
+            html: `
+                <div style="font-family: sans-serif; line-height: 1.5;">
+                    <h3>Olá, ${usuarioAprovado.nome}!</h3>
+                    <p>Temos boas notícias: <strong>sua conta foi aprovada</strong> por um administrador.</p>
+                    <p>Agora você já pode acessar todas as funcionalidades do sistema utilizando seu e-mail e senha cadastrados.</p>
+                    <br>
+                    <a href="http://localhost:8100/login" 
+                       style="background-color: #3880ff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+                       Acessar o Sistema
+                    </a>
+                    <br><br>
+                    <p>Seja bem-vindo!</p>
+                </div>
+            `
+        });
+        
+        return res.status(200).json({ 
+            message: 'Usuário aprovado com sucesso e e-mail de notificação enviado!' 
+        });
+
+    } catch (emailError) {
+        console.error('Erro ao enviar e-mail de aprovação:', emailError);
+        // Retornamos sucesso na aprovação, mas avisamos que o e-mail falhou
+        return res.status(200).json({ 
+            message: 'Usuário aprovado, mas houve um erro ao enviar o e-mail de notificação.' 
+        });
+    }
+}));
+
+/**
+ * DELETE /delete/:id
+ * Remove um usuário pelo ID (admin).
+ */
+router.delete('/delete/:id', authenticateToken, isAdmin, asyncHandler(async (req, res) => {
+    const { id } = req.params;
+
+    const result = await query('DELETE FROM user WHERE id = ?', [id]);
+
+    if (result.affectedRows === 0)
+        return res.status(404).json({ message: 'Usuário não encontrado.' });
+
+    return res.status(200).json({ message: 'Usuário removido com sucesso.' });
+}));
+
+// ==========================================
+// ROTAS DE ADMIN — ESTUDANTES / CRUD
+// ==========================================
+
+/**
+ * GET /estudantes-com-disciplinas
+ * Lista alunos aprovados com suas disciplinas agregadas.
+ */
+router.get('/estudantes-com-disciplinas', authenticateToken, isAdmin, asyncHandler(async (req, res) => {
+    const results = await query(`
+        SELECT
+            u.id,
+            u.nome,
+            u.email,
+            GROUP_CONCAT(d.nome ORDER BY d.nome SEPARATOR ', ') AS disciplinas
+        FROM user u
+        LEFT JOIN aluno_disciplinas ad ON u.id = ad.aluno_id
+        LEFT JOIN disciplinas d ON ad.disciplina_id = d.id
+        WHERE u.aprovado = 1 AND u.perfil != 'admin'
+        GROUP BY u.id, u.nome, u.email
+        ORDER BY u.nome ASC
+    `);
+
+    return res.status(200).json(results);
+}));
+
+/**
+ * POST /criar
+ * Insere um novo estudante diretamente pelo painel admin.
+ */
+router.post('/criar', authenticateToken, isAdmin, asyncHandler(async (req, res) => {
+    const { nome, email } = req.body;
+
+    if (!nome?.trim()) return res.status(400).json({ message: 'Nome é obrigatório.' });
+    if (!isValidEmail(email)) return res.status(400).json({ message: 'E-mail inválido.' });
+
+    const existente = await query('SELECT id FROM user WHERE email = ?', [email.toLowerCase()]);
+    if (existente.length > 0)
+        return res.status(409).json({ message: 'E-mail já cadastrado.' });
+
+    // Senha temporária — o aluno deve redefinir depois
+    const salt = await bcrypt.genSalt(10);
+    const senhaHash = await bcrypt.hash('trocar123', salt);
+
+    const result = await query(
+        'INSERT INTO user (nome, email, senha, aprovado, perfil) VALUES (?, ?, ?, 1, ?)',
+        [nome.trim(), email.toLowerCase(), senhaHash, 'user1']
+    );
+
+    return res.status(201).json({ id: result.insertId, nome: nome.trim(), email });
+}));
+
+/**
+ * PUT /atualizar/:id
+ * Atualiza nome e e-mail de um estudante pelo admin.
+ */
+router.put('/atualizar/:id', authenticateToken, isAdmin, asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { nome, email } = req.body;
+
+    if (!nome?.trim()) return res.status(400).json({ message: 'Nome é obrigatório.' });
+    if (email && !isValidEmail(email)) return res.status(400).json({ message: 'E-mail inválido.' });
+
+    // Verifica se o e-mail já existe em outro usuário
+    if (email) {
+        const conflito = await query(
+            'SELECT id FROM user WHERE email = ? AND id != ?',
+            [email.toLowerCase(), id]
+        );
+        if (conflito.length > 0)
+            return res.status(409).json({ message: 'E-mail já está em uso por outro usuário.' });
+    }
+
+    const updates = email
+        ? [nome.trim(), email.toLowerCase(), id]
+        : [nome.trim(), id];
+    const sql = email
+        ? 'UPDATE user SET nome = ?, email = ? WHERE id = ?'
+        : 'UPDATE user SET nome = ? WHERE id = ?';
+
+    const result = await query(sql, updates);
+
+    if (result.affectedRows === 0)
+        return res.status(404).json({ message: 'Usuário não encontrado.' });
+
+    return res.status(200).json({ message: 'Usuário atualizado com sucesso.' });
+}));
+
+// ==========================================
+// ROTAS DE ADMIN — DISCIPLINAS (sub-CRUD)
+// ==========================================
+
+/**
+ * GET /disciplinas/:alunoId
+ * Lista disciplinas de um aluno específico com status.
+ */
+router.get('/disciplinas/:alunoId', authenticateToken, isAdmin, asyncHandler(async (req, res) => {
+    const { alunoId } = req.params;
+
+    const results = await query(`
+        SELECT d.id, d.nome, ad.status
+        FROM disciplinas d
+        INNER JOIN aluno_disciplinas ad ON d.id = ad.disciplina_id
+        WHERE ad.aluno_id = ?
+        ORDER BY ad.status ASC, d.nome ASC
+    `, [alunoId]);
+
+    return res.status(200).json(results);
+}));
+
+/**
+ * POST /disciplinas/:alunoId
+ * Vincula uma disciplina a um aluno (ou cria a disciplina se não existir).
+ */
+router.post('/disciplinas/:alunoId', authenticateToken, isAdmin, asyncHandler(async (req, res) => {
+    const { alunoId } = req.params;
+    const { nome, status = 'cursando' } = req.body;
+
+    if (!nome?.trim()) return res.status(400).json({ message: 'Nome da disciplina é obrigatório.' });
+    if (!['cursando', 'concluida'].includes(status))
+        return res.status(400).json({ message: 'Status inválido. Use "cursando" ou "concluida".' });
+
+    // Busca ou cria a disciplina
+    let disciplinas = await query('SELECT id FROM disciplinas WHERE nome = ?', [nome.trim()]);
+    let disciplinaId;
+
+    if (disciplinas.length === 0) {
+        const insert = await query('INSERT INTO disciplinas (nome) VALUES (?)', [nome.trim()]);
+        disciplinaId = insert.insertId;
+    } else {
+        disciplinaId = disciplinas[0].id;
+    }
+
+    // Verifica se já está vinculada
+    const jaVinculada = await query(
+        'SELECT id FROM aluno_disciplinas WHERE aluno_id = ? AND disciplina_id = ?',
+        [alunoId, disciplinaId]
+    );
+    if (jaVinculada.length > 0)
+        return res.status(409).json({ message: 'Disciplina já vinculada a este aluno.' });
+
+    await query(
+        'INSERT INTO aluno_disciplinas (aluno_id, disciplina_id, status) VALUES (?, ?, ?)',
+        [alunoId, disciplinaId, status]
+    );
+
+    return res.status(201).json({ disciplinaId, nome: nome.trim(), status });
+}));
+
+/**
+ * PATCH /disciplinas/:alunoId/:disciplinaId
+ * Atualiza o status de uma disciplina do aluno (ex: de cursando → concluida).
+ */
+router.patch('/disciplinas/:alunoId/:disciplinaId', authenticateToken, isAdmin, asyncHandler(async (req, res) => {
+    const { alunoId, disciplinaId } = req.params;
+    const { status } = req.body;
+
+    if (!['cursando', 'concluida'].includes(status))
+        return res.status(400).json({ message: 'Status inválido.' });
+
+    const result = await query(
+        'UPDATE aluno_disciplinas SET status = ? WHERE aluno_id = ? AND disciplina_id = ?',
+        [status, alunoId, disciplinaId]
+    );
+
+    if (result.affectedRows === 0)
+        return res.status(404).json({ message: 'Vínculo não encontrado.' });
+
+    return res.status(200).json({ message: 'Status atualizado.' });
+}));
+
+/**
+ * DELETE /disciplinas/:alunoId/:disciplinaId
+ * Remove o vínculo entre aluno e disciplina.
+ */
+router.delete('/disciplinas/:alunoId/:disciplinaId', authenticateToken, isAdmin, asyncHandler(async (req, res) => {
+    const { alunoId, disciplinaId } = req.params;
+
+    const result = await query(
+        'DELETE FROM aluno_disciplinas WHERE aluno_id = ? AND disciplina_id = ?',
+        [alunoId, disciplinaId]
+    );
+
+    if (result.affectedRows === 0)
+        return res.status(404).json({ message: 'Vínculo não encontrado.' });
+
+    return res.status(200).json({ message: 'Disciplina removida do aluno.' });
+}));
+
+// ==========================================
+// ROTA DE ESTATÍSTICAS
+// ==========================================
+
+/**
+ * GET /estatisticas
+ * Retorna dados reais do banco para os gráficos do painel admin.
+ */
+router.get('/estatisticas', authenticateToken, isAdmin, asyncHandler(async (req, res) => {
+    const [rowAprovados] = await query(
+        "SELECT COUNT(*) AS total FROM user WHERE aprovado = 1 AND perfil != 'admin'"
+    );
+    const [rowPendentes] = await query(
+        'SELECT COUNT(*) AS total FROM user WHERE aprovado = 0'
+    );
+
+    // Cadastros por mês (últimos 6 meses) — só funciona se a tabela tiver data_criacao
+    let meses = [];
+    let contagem = [];
+
+    try {
+        const mensal = await query(`
+            SELECT
+                DATE_FORMAT(data_criacao, '%b/%Y') AS mes,
+                COUNT(*) AS quantidade
+            FROM user
+            WHERE data_criacao >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+            GROUP BY YEAR(data_criacao), MONTH(data_criacao)
+            ORDER BY data_criacao ASC
+        `);
+        meses = mensal.map(r => r.mes);
+        contagem = mensal.map(r => r.quantidade);
+    } catch (_) {
+        // Coluna data_criacao não existe ainda — retorna arrays vazios
+        meses = [];
+        contagem = [];
+    }
+
+    return res.status(200).json({
+        aprovados: rowAprovados.total,
+        pendentes: rowPendentes.total,
+        meses,
+        contagem
+    });
+}));
+
+// ==========================================
+// HANDLER GLOBAL DE ERROS
+// ==========================================
+
+router.use((err, req, res, _next) => {
+    console.error(`[user.js] Erro em ${req.method} ${req.path}:`, err);
+    return res.status(500).json({ message: 'Erro interno do servidor.' });
+});
+
+module.exports = router;

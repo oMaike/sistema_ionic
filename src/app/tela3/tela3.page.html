@@ -1,0 +1,43 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Tela 3</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+
+  <!-- Caixa da figura -->
+  <ion-card>
+    <ion-card-header>
+      <ion-card-title>Imagem</ion-card-title>
+    </ion-card-header>
+
+    <ion-card-content>
+      <!-- Preview da imagem -->
+      <img
+        *ngIf="imagemPreview"
+        [src]="imagemPreview"
+        style="width: 100%; margin-bottom: 10px;"
+      />
+
+      <!-- Input de imagem -->
+      <input type="file" accept="image/*" (change)="selecionarImagem($event)" />
+    </ion-card-content>
+  </ion-card>
+
+  <!-- Caixa do texto -->
+  <ion-card>
+    <ion-card-header>
+      <ion-card-title>Texto</ion-card-title>
+    </ion-card-header>
+
+    <ion-card-content>
+      <ion-textarea
+        label="Digite um texto"
+        labelPlacement="floating"
+        [(ngModel)]="texto">
+      </ion-textarea>
+    </ion-card-content>
+  </ion-card>
+
+</ion-content>

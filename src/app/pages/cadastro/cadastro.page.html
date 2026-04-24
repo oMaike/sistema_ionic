@@ -1,0 +1,165 @@
+<ion-header class="cadastro-header">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="login" text=""></ion-back-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="cadastro-content" [fullscreen]="true">
+
+  <!-- Fundo decorativo -->
+  <div class="bg-decoration">
+    <div class="circle circle-1"></div>
+    <div class="circle circle-2"></div>
+    <div class="circle circle-3"></div>
+  </div>
+
+  <div class="form-wrapper">
+
+    <!-- Cabeçalho visual -->
+    <div class="form-header">
+      <p class="form-subtitle">Preencha os dados abaixo para solicitar acesso ao sistema.</p>
+    </div>
+
+    <!-- Formulário -->
+    <div class="form-card">
+
+      <!-- Nome -->
+      <div class="field-group" [class.field-error]="erros.nome" [class.field-valid]="!erros.nome && novoUsuario.nome">
+        <label class="field-label">
+          <ion-icon name="person-outline"></ion-icon>
+          Nome Completo
+        </label>
+        <div class="field-input-wrap">
+          <ion-input
+            [(ngModel)]="novoUsuario.nome"
+            placeholder="Ex: Nome Sobrenome"
+            (ionInput)="validarCampo('nome')"
+            (ionBlur)="validarCampo('nome')"
+            autocomplete="name">
+          </ion-input>
+        </div>
+        <span class="field-msg" *ngIf="erros.nome">{{ erros.nome }}</span>
+      </div>
+
+      <!-- E-mail -->
+      <div class="field-group" [class.field-error]="erros.email" [class.field-valid]="!erros.email && novoUsuario.email">
+        <label class="field-label">
+          <ion-icon name="mail-outline"></ion-icon>
+          E-mail
+        </label>
+        <div class="field-input-wrap">
+          <ion-input
+            [(ngModel)]="novoUsuario.email"
+            type="email"
+            placeholder="Ex: nome@email.com"
+            (ionInput)="validarCampo('email')"
+            (ionBlur)="validarCampo('email')"
+            autocomplete="email">
+          </ion-input>
+        </div>
+        <span class="field-msg" *ngIf="erros.email">{{ erros.email }}</span>
+      </div>
+
+      <!-- Senha -->
+      <div class="field-group" [class.field-error]="erros.senha" [class.field-valid]="!erros.senha && novoUsuario.senha">
+        <label class="field-label">
+          <ion-icon name="lock-closed-outline"></ion-icon>
+          Senha
+        </label>
+        <div class="field-input-wrap senha-wrap">
+          <ion-input
+            [(ngModel)]="novoUsuario.senha"
+            type="password"
+            placeholder="Mínimo 6 caracteres"
+            (ionInput)="validarCampo('senha')"
+            (ionBlur)="validarCampo('senha')"
+            autocomplete="new-password">
+            <ion-input-password-toggle slot="end"></ion-input-password-toggle>
+          </ion-input>
+        </div>
+
+        <!-- Barra de força da senha -->
+        <div class="senha-strength" *ngIf="novoUsuario.senha">
+          <div class="strength-bar">
+            <div
+              class="strength-fill"
+              [style.width]="forcaSenha.pct + '%'"
+              [class]="'strength-' + forcaSenha.nivel">
+            </div>
+          </div>
+          <span class="strength-label" [class]="'strength-' + forcaSenha.nivel">
+            {{ forcaSenha.texto }}
+          </span>
+        </div>
+
+        <span class="field-msg" *ngIf="erros.senha">{{ erros.senha }}</span>
+      </div>
+
+      <!-- Confirmar Senha -->
+      <div class="field-group" [class.field-error]="erros.confirmarSenha" [class.field-valid]="!erros.confirmarSenha && confirmarSenha && confirmarSenha === novoUsuario.senha">
+        <label class="field-label">
+          <ion-icon name="shield-checkmark-outline"></ion-icon>
+          Confirmar Senha
+        </label>
+        <div class="field-input-wrap">
+          <ion-input
+            [(ngModel)]="confirmarSenha"
+            type="password"
+            placeholder="Repita a senha"
+            (ionInput)="validarCampo('confirmarSenha')"
+            (ionBlur)="validarCampo('confirmarSenha')">
+            <ion-input-password-toggle slot="end"></ion-input-password-toggle>
+          </ion-input>
+        </div>
+        <span class="field-msg" *ngIf="erros.confirmarSenha">{{ erros.confirmarSenha }}</span>
+      </div>
+
+      <!-- Botão de envio -->
+      <ion-button
+        class="btn-cadastrar"
+        expand="block"
+        (click)="presentPopover($event)"
+        [disabled]="carregando">
+        <ion-icon name="checkmark-circle-outline" slot="start"></ion-icon>
+        Solicitar Acesso
+      </ion-button>
+
+      <ion-popover #popover [isOpen]="isOpen" (didDismiss)="isOpen = false">
+        <ng-template>
+          <ion-content class="ion-padding">
+            <p>Deseja confirmar o cadastro com os dados informados?</p>
+            <ion-button expand="block" (click)="confirmarCadastro()" [disabled]="carregando">
+              <span *ngIf="!carregando">
+                <ion-icon name="checkmark-circle-outline"></ion-icon>
+                Confirmar
+              </span>
+              <span *ngIf="carregando" class="loading-dots">
+                <span></span><span></span><span></span>
+              </span>
+            </ion-button>
+            <ion-button expand="block" fill="clear" color="medium" (click)="isOpen = false">
+              Cancelar
+            </ion-button>
+          </ion-content>
+        </ng-template>
+      </ion-popover>
+
+      <!-- Link voltar ao login -->
+      <p class="link-login">
+        Já tem conta?
+        <a (click)="irParaLogin()">Fazer login</a>
+      </p>
+
+    </div>
+
+    <!-- Aviso de aprovação -->
+    <div class="aviso-aprovacao">
+      <ion-icon name="information-circle-outline"></ion-icon>
+      Após o cadastro, aguarde a aprovação do administrador para acessar o sistema.
+    </div>
+
+  </div>
+
+</ion-content>

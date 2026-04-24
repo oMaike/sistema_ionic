@@ -1,0 +1,84 @@
+<ion-menu contentId="main-content">
+  <ion-header>
+    <ion-toolbar color="primary">
+      <ion-title>Menu</ion-title>
+    </ion-toolbar>
+  </ion-header>
+
+  <ion-content>
+    <ion-list>
+      <ion-item button (click)="incluir()">
+        <ion-icon slot="start" name="person-add-outline"></ion-icon>
+        <ion-label>Inserir Estudante</ion-label>
+      </ion-item>
+
+      <ion-item button (click)="alterar()">
+        <ion-icon slot="start" name="create-outline"></ion-icon>
+        <ion-label>Alterar</ion-label>
+      </ion-item>
+
+      <ion-item button (click)="excluir()">
+        <ion-icon slot="start" name="trash-outline" color="danger"></ion-icon>
+        <ion-label>Excluir (Lixeira)</ion-label>
+      </ion-item>
+
+      <ion-item button (click)="setOpen(true)">
+        <ion-icon slot="start" name="bar-chart-outline" color="tertiary"></ion-icon>
+        <ion-label>Registros (Gráficos)</ion-label>
+      </ion-item>
+    </ion-list>
+  </ion-content>
+</ion-menu>
+
+<div class="ion-page" id="main-content">
+  <ion-header [translucent]="true">
+    <ion-toolbar>
+      <ion-buttons slot="start">
+        <ion-menu-button></ion-menu-button>
+      </ion-buttons>
+      <ion-title>Gestão Escolar</ion-title>
+    </ion-toolbar>
+  </ion-header>
+
+  <ion-content [fullscreen]="true" class="ion-padding">
+    <ion-item>
+      <ion-input
+        type="text"
+        [(ngModel)]="nome"
+        (ionInput)="filtrarInput($event)"
+        label="Nome:"
+        labelPlacement="floating"
+        placeholder="Coloque o nome do estudante">
+      </ion-input>
+    </ion-item>
+
+    <ion-row>
+      <ion-col>
+        <ion-button expand="block" (click)="incluir()">OK</ion-button>
+      </ion-col>
+      <ion-col>
+        <ion-button expand="block" fill="outline" (click)="limpar()">Limpar</ion-button>
+      </ion-col>
+    </ion-row>
+
+    <ion-modal [isOpen]="isModalOpen" (didPresent)="gerarGrafico()">
+      <ng-template>
+        <ion-header>
+          <ion-toolbar color="tertiary">
+            <ion-title>Dados e Estatísticas</ion-title>
+            <ion-buttons slot="end">
+              <ion-button (click)="setOpen(false)">Fechar</ion-button>
+            </ion-buttons>
+          </ion-toolbar>
+        </ion-header>
+        <ion-content class="ion-padding">
+          <h3>Relatório Visual</h3>
+          <div style="width: 100%; height: 300px;">
+            <canvas #graficoCanvas></canvas>
+          </div>
+          <p>Itens na lixeira: {{ lixeira.length }}</p>
+        </ion-content>
+      </ng-template>
+    </ion-modal>
+  </ion-content>
+</div>

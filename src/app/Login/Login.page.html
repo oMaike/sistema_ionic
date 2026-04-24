@@ -1,0 +1,40 @@
+<ion-content class="ion-padding">
+  <ion-card>
+    
+    <form (ngSubmit)="fazerLogin()">
+      <ion-item>
+        <ion-input 
+          name="email"
+          type="email" 
+          label="E-mail" 
+          labelPlacement="floating" 
+          [(ngModel)]="usuario.email" 
+          placeholder="Digite o usuário">
+        </ion-input>
+      </ion-item>
+
+      <ion-item>
+        <ion-input 
+          name="senha"
+          type="password" 
+          label="Senha" 
+          labelPlacement="floating" 
+          [(ngModel)]="usuario.senha" 
+          placeholder="Digite a senha">
+        </ion-input>
+      </ion-item>
+
+      <ion-button type="submit" expand="block" fill="outline">
+        Login
+      </ion-button>
+    </form>
+    <ion-button type="button" expand="block" fill="clear" (click)="irParaCadastro()">
+      Criar Nova Conta (Cadastrar)
+    </ion-button>
+
+    <ion-button type="button" expand="block" fill="clear" (click)="recuperarSenha()">
+      Recuperar senha
+    </ion-button>
+    
+  </ion-card>
+</ion-content>
