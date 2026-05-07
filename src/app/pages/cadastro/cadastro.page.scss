@@ -5,10 +5,10 @@
   --c-bg:        #0a0e14;
   --c-surface:   #111720;
   --c-border:    #1e2d3d;
-  --c-accent:    #00d4aa;
-  --c-accent2:   #0099ff;
+  --c-accent:    #0099ff;
+  --c-accent2:   #3dc2ff;
   --c-error:     #ff4d6d;
-  --c-success:   #00d4aa;
+  --c-success:   #0099ff;
   --c-text:      #e2e8f0;
   --c-muted:     #64748b;
   --radius:      14px;
@@ -107,8 +107,8 @@
     justify-content: center;
     width: 64px; height: 64px;
     border-radius: 50%;
-    background: linear-gradient(135deg, rgba(0,212,170,0.15), rgba(0,153,255,0.15));
-    border: 1px solid rgba(0,212,170,0.3);
+    background: linear-gradient(135deg, rgba(0,153,255,0.15), rgba(61,194,255,0.15));
+    border: 1px solid rgba(0,153,255,0.3);
     margin-bottom: 16px;
 
     ion-icon {
@@ -183,7 +183,7 @@
 
   &:focus-within {
     border-color: var(--c-accent);
-    box-shadow: 0 0 0 3px rgba(0,212,170,0.12);
+    box-shadow: 0 0 0 3px rgba(0,153,255,0.12);
   }
 
   ion-input {
@@ -249,7 +249,7 @@
 
       &.strength-fraca   { background: #ff4d6d; }
       &.strength-media   { background: #ffc409; }
-      &.strength-forte   { background: #2dd36f; }
+      &.strength-forte   { background: #3dc2ff; }
       &.strength-otima   { background: var(--c-accent); }
     }
   }

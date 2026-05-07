@@ -51,7 +51,7 @@ export class HomePage {
         datasets: [{
           label: 'Estatísticas do App',
           data: [10, this.lixeira.length, 5], // Dados dinâmicos da lixeira
-          backgroundColor: ['#3880ff', '#eb445a', '#2dd36f']
+          backgroundColor: ['#3880ff', '#eb445a', '#3dc2ff']
         }]
       },
       options: { responsive: true }

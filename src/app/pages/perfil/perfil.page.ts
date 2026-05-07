@@ -9,7 +9,7 @@ import {
   personOutline, mailOutline, lockClosedOutline,
   createOutline, shieldCheckmarkOutline, fingerPrintOutline,
   warningOutline, checkmarkCircleOutline, ellipse,
-  imageOutline, qrCodeOutline
+  imageOutline, menuOutline, qrCodeOutline
 } from 'ionicons/icons';
 
 interface DadosUsuario {
@@ -37,6 +37,7 @@ export class PerfilPage implements OnInit {
 
   // ── Texto editável ────────────────────────────────────
   textoUsuario: string = '';
+  consultorAberto: boolean = false;
 
   private readonly API_URL = 'http://localhost:9090/user';
 
@@ -51,7 +52,7 @@ export class PerfilPage implements OnInit {
       personOutline, mailOutline, lockClosedOutline,
       createOutline, shieldCheckmarkOutline, fingerPrintOutline,
       warningOutline, checkmarkCircleOutline, ellipse,
-      imageOutline, qrCodeOutline
+      imageOutline, menuOutline, qrCodeOutline
     });
   }
 
@@ -100,6 +101,10 @@ export class PerfilPage implements OnInit {
   onNomeChange() {
     this.nomeDirty = this.dados.nome.trim() !== this.nomeOriginal.trim();
     if (this.salvouOk) this.salvouOk = false;
+  }
+
+  toggleConsultor() {
+    this.consultorAberto = !this.consultorAberto;
   }
 
   salvar() {

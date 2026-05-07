@@ -594,7 +594,7 @@ export class AdminPanelPage implements OnInit {
           datasets: [{
             label: 'Disciplinas',
             data: [cursando, concluidas],
-            backgroundColor: ['#3dc2ff', '#2dd36f'],
+            backgroundColor: ['#3dc2ff', '#3880ff'],
             borderRadius: ehPizza ? 0 : 6
           }]
         },
@@ -673,7 +673,7 @@ export class AdminPanelPage implements OnInit {
             data: ehBarras
               ? [this.estudantesCrud.length, this.lixeira.length, this.pendentes.length]
               : [this.estudantesCrud.length, this.pendentes.length],
-            backgroundColor: ['#2dd36f', '#eb445a', '#ffc409'],
+            backgroundColor: ['#3880ff', '#eb445a', '#ffc409'],
             borderRadius: ehBarras ? 6 : 0
           }]
         },
