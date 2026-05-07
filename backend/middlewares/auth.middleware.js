@@ -11,7 +11,7 @@ const authenticateToken = (req, res, next) => {
     if (!token)
         return res.status(401).json({ message: 'Acesso negado. Faça login.' });
 
-    jwt.verify(token, process.env.ACESS_TOKEN, (err, user) => {
+    jwt.verify(token, process.env.ACCESS_TOKEN, (err, user) => {
         if (err)
             return res.status(403).json({ message: 'Token inválido ou expirado.' });
         req.user = user;

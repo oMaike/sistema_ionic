@@ -27,6 +27,11 @@ export const routes: Routes = [
     canActivate: [adminGuard], // ← protegida (só admin)
   },
   {
+    path: 'admin-permissoes',
+    loadComponent: () => import('./pages/admin-permissoes/admin-permissoes.page').then(m => m.AdminPermissoesPage),
+    canActivate: [adminGuard],
+  },
+  {
     path: 'cadastro',
     loadComponent: () => import('./pages/cadastro/cadastro.page').then(m => m.CadastroPage),
   },

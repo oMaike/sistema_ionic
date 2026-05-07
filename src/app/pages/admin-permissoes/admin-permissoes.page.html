@@ -1,0 +1,70 @@
+<ion-header>
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/admin-panel"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Permissões</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <ion-searchbar
+    placeholder="Buscar usuário..."
+    [(ngModel)]="termoBusca"
+    (ionInput)="buscarUsuarios()"
+    debounce="300"
+    [disabled]="isLoading">
+  </ion-searchbar>
+
+  <ng-container *ngIf="isLoading">
+    <ion-list lines="full">
+      <ion-item *ngFor="let i of [1,2,3,4]">
+        <ion-label>
+          <ion-skeleton-text animated style="width: 60%; height: 14px;"></ion-skeleton-text>
+          <ion-skeleton-text animated style="width: 42%; height: 12px; margin-top: 6px;"></ion-skeleton-text>
+        </ion-label>
+      </ion-item>
+    </ion-list>
+  </ng-container>
+
+  <ion-list *ngIf="!isLoading" lines="full">
+    <ion-item *ngIf="usuariosExibidos.length === 0">
+      <ion-icon slot="start" name="search-outline" color="medium"></ion-icon>
+      <ion-label color="medium">Nenhum usuário encontrado.</ion-label>
+    </ion-item>
+
+    <ion-item *ngFor="let usuario of usuariosExibidos">
+      <ion-avatar slot="start">
+        <ion-icon name="person-circle-outline"></ion-icon>
+      </ion-avatar>
+
+      <ion-label>
+        <h2>{{ usuario.nome }}</h2>
+        <p>{{ usuario.email }}</p>
+        <ion-badge [color]="usuario.acessoAtivo ? 'success' : 'medium'">
+          {{ usuario.acessoAtivo ? 'Acesso ativo' : 'Sem acesso' }}
+        </ion-badge>
+      </ion-label>
+
+      <ion-toggle
+        slot="end"
+        [(ngModel)]="usuario.acessoAtivo"
+        [attr.aria-label]="'Acesso de ' + usuario.nome"
+        [enableOnOffLabels]="true">
+      </ion-toggle>
+    </ion-item>
+  </ion-list>
+</ion-content>
+
+<ion-footer>
+  <ion-toolbar>
+    <ion-button
+      expand="block"
+      color="primary"
+      [disabled]="isLoading || isSalvando || !temAlteracaoPermissoes()"
+      (click)="salvarPermissoes()">
+      <ion-icon slot="start" name="save-outline"></ion-icon>
+      {{ isSalvando ? 'Salvando...' : 'Salvar alterações' }}
+    </ion-button>
+  </ion-toolbar>
+</ion-footer>

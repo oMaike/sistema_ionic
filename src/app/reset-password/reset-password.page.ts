@@ -16,6 +16,9 @@ export class ResetPasswordPage implements OnInit {
   token: string | null = null;
   newPassword: string = '';
   confirmPassword: string = '';
+  isLoading: boolean = false;
+
+  private readonly API_URL = 'http://localhost:9090/user';
 
   constructor(
     private route: ActivatedRoute,
@@ -40,18 +43,26 @@ export class ResetPasswordPage implements OnInit {
       return;
     }
 
+    if (this.newPassword !== this.confirmPassword) {
+      this.exibirToast('As senhas nÃ£o coincidem.', 'warning');
+      return;
+    }
+
     const payload = {
       token: this.token,
       newPassword: this.newPassword
     };
 
-    // Altere para a URL real do seu backend
-    this.http.post('http://localhost:3000/resetPassword', payload).subscribe({
+    this.isLoading = true;
+
+    this.http.post(`${this.API_URL}/resetPassword`, payload).subscribe({
       next: () => {
+        this.isLoading = false;
         this.exibirToast('Senha alterada com sucesso!', 'success');
         this.router.navigate(['/login']);
       },
       error: (err) => {
+        this.isLoading = false;
         const erroMsg = err.error?.message || 'Erro ao redefinir senha.';
         this.exibirToast(erroMsg, 'danger');
       }

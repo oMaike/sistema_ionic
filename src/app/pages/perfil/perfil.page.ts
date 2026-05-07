@@ -8,7 +8,8 @@ import {
   logOutOutline, saveOutline, trashOutline,
   personOutline, mailOutline, lockClosedOutline,
   createOutline, shieldCheckmarkOutline, fingerPrintOutline,
-  warningOutline, checkmarkCircleOutline, ellipse
+  warningOutline, checkmarkCircleOutline, ellipse,
+  imageOutline, qrCodeOutline
 } from 'ionicons/icons';
 
 interface DadosUsuario {
@@ -29,11 +30,13 @@ export class PerfilPage implements OnInit {
 
   dados: DadosUsuario = { id: null, nome: '', email: '', perfil: '' };
 
-  // Controle de estado da edição
   nomeOriginal: string = '';
-  nomeDirty: boolean = false;     // campo foi alterado?
+  nomeDirty: boolean = false;
   salvando: boolean = false;
-  salvouOk: boolean = false;      // feedback visual de sucesso
+  salvouOk: boolean = false;
+
+  // ── Texto editável ────────────────────────────────────
+  textoUsuario: string = '';
 
   private readonly API_URL = 'http://localhost:9090/user';
 
@@ -47,7 +50,8 @@ export class PerfilPage implements OnInit {
       logOutOutline, saveOutline, trashOutline,
       personOutline, mailOutline, lockClosedOutline,
       createOutline, shieldCheckmarkOutline, fingerPrintOutline,
-      warningOutline, checkmarkCircleOutline, ellipse
+      warningOutline, checkmarkCircleOutline, ellipse,
+      imageOutline, qrCodeOutline
     });
   }
 
@@ -55,57 +59,37 @@ export class PerfilPage implements OnInit {
     this.carregarDadosDoToken();
   }
 
-  // ── Helpers ──────────────────────────────────────────────
-
   private getHeaders(): HttpHeaders {
     const token = localStorage.getItem('token') ?? '';
     return new HttpHeaders().set('Authorization', `Bearer ${token}`);
   }
 
-  private async showToast(
-    message: string,
-    color: 'success' | 'danger' | 'warning' = 'success'
-  ) {
+  private async showToast(message: string, color: 'success' | 'danger' | 'warning' = 'success') {
     const toast = await this.toastCtrl.create({
-      message,
-      duration: 2500,
-      color,
-      position: 'bottom',
+      message, duration: 2500, color, position: 'bottom',
       buttons: [{ icon: 'close-outline', role: 'cancel' }]
     });
     await toast.present();
   }
 
-  // ── Inicialização ─────────────────────────────────────────
-
- carregarDadosDoToken() {
-  const token = localStorage.getItem('token');
-  if (!token) {
-    this.navCtrl.navigateRoot('/login');
-    return;
+  carregarDadosDoToken() {
+    const token = localStorage.getItem('token');
+    if (!token) { this.navCtrl.navigateRoot('/login'); return; }
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const payload = JSON.parse(atob(base64));
+      this.dados = {
+        id:     payload.id     ?? null,
+        nome:   payload.nome   ?? '',
+        email:  payload.email  ?? '',
+        perfil: payload.perfil ?? 'user1'
+      };
+      this.nomeOriginal = this.dados.nome;
+    } catch(e) {
+      this.navCtrl.navigateRoot('/login');
+    }
   }
-
-  try {
-    // ✅ Mesma conversão do Login.page.ts
-    const base64Url = token.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const payload = JSON.parse(atob(base64));
-
-    this.dados = {
-      id:     payload.id     ?? null,
-      nome:   payload.nome   ?? '',
-      email:  payload.email  ?? '',
-      perfil: payload.perfil ?? 'user1'
-    };
-    this.nomeOriginal = this.dados.nome;
-
-  } catch(e) {
-    console.error('Erro ao decodificar token:', e);
-    this.navCtrl.navigateRoot('/login');
-  }
-}
-  
-  // ── Avatar: iniciais do nome ──────────────────────────────
 
   getIniciais(): string {
     const partes = (this.dados.nome || 'U').trim().split(' ');
@@ -113,25 +97,15 @@ export class PerfilPage implements OnInit {
     return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
   }
 
-  // ── Detecta mudança no campo nome ────────────────────────
-
   onNomeChange() {
     this.nomeDirty = this.dados.nome.trim() !== this.nomeOriginal.trim();
-    // Limpa o estado de "salvo ok" se o usuário editar de novo
     if (this.salvouOk) this.salvouOk = false;
   }
 
-  // ── Salvar nome ───────────────────────────────────────────
-
   salvar() {
-    if (!this.dados.nome.trim()) {
-      this.showToast('O nome não pode ser vazio.', 'warning');
-      return;
-    }
+    if (!this.dados.nome.trim()) { this.showToast('O nome não pode ser vazio.', 'warning'); return; }
     if (!this.nomeDirty) return;
-
     this.salvando = true;
-
     this.http.patch(
       `${this.API_URL}/update-perfil`,
       { nome: this.dados.nome.trim() },
@@ -142,20 +116,15 @@ export class PerfilPage implements OnInit {
         this.salvouOk = true;
         this.nomeOriginal = this.dados.nome.trim();
         this.nomeDirty = false;
-        this.showToast('Perfil atualizado com sucesso!', 'success');
-
-        // Reseta o feedback visual após 2s
+        this.showToast('Perfil atualizado com sucesso!');
         setTimeout(() => { this.salvouOk = false; }, 2000);
       },
       error: (err) => {
         this.salvando = false;
-        const msg = err.error?.message || 'Erro ao atualizar perfil.';
-        this.showToast(msg, 'danger');
+        this.showToast(err.error?.message || 'Erro ao atualizar perfil.', 'danger');
       }
     });
   }
-
-  // ── Logout ────────────────────────────────────────────────
 
   async logout() {
     const alert = await this.alertCtrl.create({
@@ -163,39 +132,36 @@ export class PerfilPage implements OnInit {
       message: 'Deseja encerrar sua sessão?',
       buttons: [
         { text: 'Cancelar', role: 'cancel' },
-        {
-          text: 'Sair',
-          handler: () => {
-            localStorage.removeItem('token');
-            this.navCtrl.navigateRoot('/login');
-          }
-        }
+        { text: 'Sair', handler: () => { localStorage.removeItem('token'); this.navCtrl.navigateRoot('/login'); } }
       ]
     });
     await alert.present();
   }
 
-  // ── Deletar conta ─────────────────────────────────────────
+  enviarTexto() {
+  if (!this.textoUsuario.trim()) {
+    this.showToast('Digite algo.', 'warning');
+    return;
+  }
+
+  // substitua pela sua lógica de envio real (ex: HTTP POST)
+  console.log('Texto enviado:', this.textoUsuario);
+  this.showToast('Texto enviado com sucesso!', 'success');
+}
 
   async deletarConta() {
-    // Primeira confirmação
     const alert1 = await this.alertCtrl.create({
-      header: '⚠️ Excluir Conta',
+      header: 'Excluir Conta',
       message: 'Esta ação é <strong>permanente e irreversível</strong>. Todos os seus dados serão removidos.',
       buttons: [
         { text: 'Cancelar', role: 'cancel' },
-        {
-          text: 'Continuar',
-          role: 'destructive',
-          handler: () => this.confirmarDelecao()
-        }
+        { text: 'Continuar', role: 'destructive', handler: () => this.confirmarDelecao() }
       ]
     });
     await alert1.present();
   }
 
   private async confirmarDelecao() {
-    // Segunda confirmação — evita exclusão acidental
     const alert2 = await this.alertCtrl.create({
       header: 'Tem certeza?',
       message: `Você está prestes a excluir a conta de <strong>${this.dados.email}</strong>. Não há como desfazer.`,
@@ -205,17 +171,10 @@ export class PerfilPage implements OnInit {
           text: 'Excluir Definitivamente',
           role: 'destructive',
           handler: () => {
-            this.http.delete(`${this.API_URL}/delete-me`, { headers: this.getHeaders() })
-              .subscribe({
-                next: () => {
-                  localStorage.removeItem('token');
-                  this.navCtrl.navigateRoot('/login');
-                },
-                error: (err) => {
-                  const msg = err.error?.message || 'Erro ao excluir conta.';
-                  this.showToast(msg, 'danger');
-                }
-              });
+            this.http.delete(`${this.API_URL}/delete-me`, { headers: this.getHeaders() }).subscribe({
+              next: () => { localStorage.removeItem('token'); this.navCtrl.navigateRoot('/login'); },
+              error: (err) => this.showToast(err.error?.message || 'Erro ao excluir conta.', 'danger')
+            });
           }
         }
       ]

@@ -63,6 +63,26 @@ const enviarEmailAprovacao = async ({ nome, email }) => {
 };
 
 /**
+ * Notifica o usuário que seu acesso foi desativado pelo admin.
+ */
+const enviarEmailDesativacao = async ({ nome, email }) => {
+    await transporter.sendMail({
+        from: process.env.EMAIL,
+        to: email,
+        subject: 'Seu acesso foi desativado',
+        html: `
+            <div style="font-family: sans-serif; line-height: 1.5;">
+                <h3>Olá, ${nome}.</h3>
+                <p>Informamos que <strong>seu acesso ao sistema foi desativado</strong> por um administrador.</p>
+                <p>Se você acredita que isso foi um engano, entre em contato com o suporte.</p>
+                <br>
+                <p style="color: #999; font-size: 13px;">Você não poderá fazer login enquanto seu acesso estiver desativado.</p>
+            </div>
+        `
+    });
+};
+
+/**
  * Envia link de redefinição de senha para o usuário.
  */
 const enviarEmailRedefinicaoSenha = async ({ email, resetLink }) => {
@@ -82,5 +102,6 @@ const enviarEmailRedefinicaoSenha = async ({ email, resetLink }) => {
 module.exports = {
     enviarEmailNovoUsuario,
     enviarEmailAprovacao,
+    enviarEmailDesativacao,
     enviarEmailRedefinicaoSenha
 };

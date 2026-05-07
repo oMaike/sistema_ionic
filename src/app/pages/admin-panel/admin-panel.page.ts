@@ -2,6 +2,7 @@ import { Component, OnInit, ViewChild, ElementRef, AfterViewInit } from '@angula
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpClientModule, HttpHeaders } from '@angular/common/http';
+import { Router } from '@angular/router';
 import {
   IonicModule,
   MenuController,
@@ -37,6 +38,9 @@ interface Estudante {
   id: number;
   nome: string;
   email: string;
+  aprovado?: number;
+  acessoAtivo?: boolean;
+  acessoOriginal?: boolean;
   disciplinas?: string;           // campo legado da API
   disciplinasLista?: Disciplina[]; // lista gerenciada localmente no CRUD
 }
@@ -133,6 +137,7 @@ export class AdminPanelPage implements OnInit {
 
   constructor(
     private http: HttpClient,
+    private router: Router,
     private menuCtrl: MenuController,
     private toastCtrl: ToastController,
     private alertCtrl: AlertController,
@@ -223,8 +228,10 @@ export class AdminPanelPage implements OnInit {
       .subscribe({
         next: (res) => {
           // Converte o campo `disciplinas` (string legada) para lista gerenciável
-          this.estudantesCrud = res.map((est, idx) => ({
+          this.estudantesCrud = res.map((est) => ({
             ...est,
+            acessoAtivo: est.aprovado !== 0,
+            acessoOriginal: est.aprovado !== 0,
             disciplinasLista: this.parsearDisciplinasString(est.disciplinas)
           }));
           this.proximoIdCrud = Math.max(0, ...this.estudantesCrud.map(e => e.id)) + 1;
@@ -266,6 +273,7 @@ export class AdminPanelPage implements OnInit {
         next: () => {
           this.showToast('Usuário aprovado com sucesso!', 'success');
           this.carregarPendentes();
+          this.sincronizarCrudComBanco();
           if (this.mostrarEstudantes) this.liberarDadosBanco();
         },
         error: () => this.handleError('Erro ao aprovar usuário.')
@@ -317,6 +325,11 @@ export class AdminPanelPage implements OnInit {
     this.atualizarListaCrud();
   }
 
+  async abrirPaginaPermissoes() {
+    await this.menuCtrl.close();
+    await this.router.navigate(['/admin-permissoes']);
+  }
+
   // ----- CRIAR -----
 
   abrirModalCriarAluno() {
@@ -362,6 +375,9 @@ export class AdminPanelPage implements OnInit {
         id: this.proximoIdCrud++,
         nome: this.formNome,
         email: this.formEmail,
+        aprovado: 1,
+        acessoAtivo: true,
+        acessoOriginal: true,
         disciplinasLista: []
       };
 

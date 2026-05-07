@@ -19,25 +19,7 @@
 
   <div class="perfil-wrapper">
 
-    <!-- ── Avatar / Hero ── -->
-    <div class="hero-section">
-      <div class="avatar-ring">
-        <div class="avatar-inner">
-          <span class="avatar-initials">{{ getIniciais() }}</span>
-        </div>
-        <div class="avatar-status"></div>
-      </div>
-
-      <h1 class="hero-nome">{{ dados.nome || 'Usuário' }}</h1>
-      <p class="hero-email">{{ dados.email }}</p>
-
-      <div class="hero-badge">
-        <ion-icon name="shield-checkmark-outline"></ion-icon>
-        {{ dados.perfil === 'admin' ? 'Administrador' : 'Usuário' }}
-      </div>
-    </div>
-
-    <!-- ── Card de edição ── -->
+    <!-- Card de edição -->
     <div class="edit-card">
       <div class="edit-card-header">
         <ion-icon name="create-outline"></ion-icon>
@@ -69,21 +51,11 @@
           <span class="readonly-badge">Não editável</span>
         </label>
         <div class="field-input-wrap">
-          <ion-input
-            [(ngModel)]="dados.email"
-            [readonly]="true"
-            type="email">
-          </ion-input>
+          <ion-input [(ngModel)]="dados.email" [readonly]="true" type="email"></ion-input>
           <ion-icon name="lock-closed-outline" class="lock-icon"></ion-icon>
         </div>
       </div>
-
-      <!-- ID -->
-      <div class="id-row">
-        <ion-icon name="finger-print-outline"></ion-icon>
-        ID do usuário: <strong>#{{ dados.id }}</strong>
-      </div>
-
+      
       <!-- Botão salvar -->
       <button
         class="btn-salvar"
@@ -105,20 +77,53 @@
       </button>
     </div>
 
-    <!-- ── Zona de perigo ── -->
-    <div class="danger-zone">
-      <div class="danger-header">
-        <ion-icon name="warning-outline"></ion-icon>
-        Zona de Perigo
+    <!-- ── Área de conteúdo do usuário ───────────────────── -->
+    <div class="conteudo-card">
+
+      <!-- Linha superior: imagem pequena + QR Code -->
+      <div class="conteudo-topo">
+
+        <!-- Imagem pequena (placeholder) -->
+        <div class="img-pequena-wrap">
+          <div class="img-placeholder img-pequena">
+            <ion-icon name="image-outline"></ion-icon>
+          </div>
+        </div>
+
+        <!-- QR Code (placeholder) -->
+        <div class="qr-placeholder-wrap">
+          <div class="img-placeholder qr-placeholder">
+            <ion-icon name="qr-code-outline"></ion-icon>
+            <span>QR Code</span>
+          </div>
+        </div>
+
       </div>
-      <p class="danger-desc">
-        A exclusão da conta é permanente e não pode ser desfeita.
-        Todos os seus dados serão removidos.
-      </p>
-      <button class="btn-deletar" (click)="deletarConta()">
-        <ion-icon name="trash-outline"></ion-icon>
-        Excluir Minha Conta
-      </button>
+
+      <!-- Imagem grande -->
+      <div class="img-grande-wrap">
+        <div class="img-placeholder img-grande">
+          <ion-icon name="image-outline"></ion-icon>
+          <span>Imagem</span>
+        </div>
+      </div>
+
+      <!-- Texto editável -->
+      <ion-list lines="none" class="txt-lista">
+        <ion-item class="txt-item">
+          <ion-textarea
+            [(ngModel)]="textoUsuario"
+            aria-label="Texto"
+            placeholder="Digite aqui suas anotações..."
+            [autoGrow]="true"
+            rows="4">
+          </ion-textarea>
+        </ion-item>
+      </ion-list>
+      <ion-button expand="block" fill="solid" class="btn-enviar-txt" (click)="enviarTexto()">
+  Enviar
+</ion-button>
+
     </div>
 
   </div>

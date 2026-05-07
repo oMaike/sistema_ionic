@@ -1,0 +1,25 @@
+ion-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+ion-avatar ion-icon {
+  color: var(--ion-color-medium);
+  font-size: 36px;
+}
+
+ion-item h2 {
+  font-weight: 700;
+}
+
+ion-badge {
+  margin-top: 6px;
+}
+
+ion-footer ion-toolbar {
+  --padding-start: 16px;
+  --padding-end: 16px;
+  --padding-top: 8px;
+  --padding-bottom: 8px;
+}

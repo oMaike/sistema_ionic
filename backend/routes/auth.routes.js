@@ -76,7 +76,7 @@ router.post('/login', asyncHandler(async (req, res) => {
         return res.status(403).json({ message: 'Aguarde aprovação do administrador.' });
 
     const payload = { id: user.id, nome: user.nome, email: user.email, perfil: user.perfil };
-    const accessToken = jwt.sign(payload, process.env.ACESS_TOKEN, { expiresIn: '8h' });
+    const accessToken = jwt.sign(payload, process.env.ACCESS_TOKEN, { expiresIn: '8h' });
 
     return res.status(200).json({ token: accessToken });
 }));
@@ -97,7 +97,7 @@ router.post('/forgotPassword', asyncHandler(async (req, res) => {
     if (results.length === 0)
         return res.status(200).json({ message: 'Se o e-mail existir, o link foi enviado.' });
 
-    const resetToken = jwt.sign({ email }, process.env.ACESS_TOKEN, { expiresIn: '15m' });
+    const resetToken = jwt.sign({ email: email.toLowerCase() }, process.env.ACCESS_TOKEN, { expiresIn: '15m' });
     const resetLink = `http://localhost:8100/reset-password?token=${resetToken}`;
 
     await enviarEmailRedefinicaoSenha({ email, resetLink });
@@ -110,17 +110,24 @@ router.post('/forgotPassword', asyncHandler(async (req, res) => {
  * Salva a nova senha a partir do token de redefinição.
  */
 router.post('/resetPassword', asyncHandler(async (req, res) => {
-    const { token, newPassword } = req.body;
+    const { token, newPassword, password, senha } = req.body;
+    const senhaRaw = newPassword || password || senha;
 
-    if (!token || !newPassword)
+    if (!token || !senhaRaw)
         return res.status(400).json({ message: 'Dados insuficientes.' });
 
-    try {
-        const decoded = jwt.verify(token, process.env.ACESS_TOKEN);
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(newPassword, salt);
+    if (senhaRaw.length < 6)
+        return res.status(400).json({ message: 'Senha deve ter no mínimo 6 caracteres.' });
 
-        await query('UPDATE user SET senha = ? WHERE email = ?', [hashedPassword, decoded.email]);
+    try {
+        const decoded = jwt.verify(token, process.env.ACCESS_TOKEN);
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(senhaRaw, salt);
+
+        const result = await query('UPDATE user SET senha = ? WHERE email = ?', [hashedPassword, decoded.email]);
+
+        if (result.affectedRows === 0)
+            return res.status(404).json({ message: 'Usuário não encontrado.' });
 
         return res.status(200).json({ message: 'Senha atualizada com sucesso!' });
     } catch {

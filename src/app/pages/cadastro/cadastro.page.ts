@@ -209,7 +209,7 @@ export class CadastroPage {
       next: async () => {
         this.carregando = false;
         const alert = await this.alertCtrl.create({
-          header: '✅ Cadastro Realizado!',
+          header: 'Cadastro Realizado!',
           message: 'Seu acesso foi solicitado. Aguarde a aprovação do administrador para fazer login.',
           buttons: [{
             text: 'Ir para o Login',

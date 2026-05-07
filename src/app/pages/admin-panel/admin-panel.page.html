@@ -101,6 +101,15 @@
       </ion-item>
     </ion-list>
 
+    <!-- Permissões -->
+    <ion-list lines="full">
+      <ion-item button (click)="abrirPaginaPermissoes()">
+        <ion-icon slot="start" name="person-circle-outline" color="primary"></ion-icon>
+        <ion-label>Permissões</ion-label>
+        <ion-icon slot="end" name="chevron-forward-outline" color="medium"></ion-icon>
+      </ion-item>
+    </ion-list>
+
   </ion-content>
 </ion-menu>
 
@@ -131,16 +140,20 @@
         <ion-card-subtitle>Gestão de Estudantes</ion-card-subtitle>
         <ion-card-title>
           <span>Cadastro de Alunos</span>
+        </ion-card-title>
+
+        <!-- Botões de ação -->
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 12px; flex-wrap: wrap; gap: 8px;">
           <ion-button
             size="small"
             fill="outline"
             color="primary"
-            style="float: right; margin-top: -4px;"
             (click)="abrirModalCriarAluno()">
             <ion-icon slot="start" name="add-outline"></ion-icon>
             Novo Aluno
           </ion-button>
-        </ion-card-title>
+        </div>
+
       </ion-card-header>
 
       <ion-card-content>
@@ -161,21 +174,16 @@
             <ion-label color="medium">Nenhum aluno no cadastro local.</ion-label>
           </ion-item>
 
-          <ion-item *ngFor="let est of estudantesCrudExibidos" [class.item-editing]="est.id === editandoId">
+          <ion-item
+            *ngFor="let est of estudantesCrudExibidos"
+            [class.item-editing]="est.id === editandoId"
+            [class.item-desativado]="!est.acessoAtivo">
 
             <!-- Modo de edição inline -->
             <ng-container *ngIf="est.id === editandoId; else modoVisualizacao">
               <ion-label>
-                <ion-input
-                  [(ngModel)]="editNome"
-                  placeholder="Nome"
-                  style="font-weight: bold;">
-                </ion-input>
-                <ion-input
-                  [(ngModel)]="editEmail"
-                  placeholder="E-mail"
-                  type="email">
-                </ion-input>
+                <ion-input [(ngModel)]="editNome" placeholder="Nome" style="font-weight: bold;"></ion-input>
+                <ion-input [(ngModel)]="editEmail" placeholder="E-mail" type="email"></ion-input>
               </ion-label>
               <ion-buttons slot="end">
                 <ion-button color="success" (click)="salvarEdicao(est.id)">
@@ -194,30 +202,19 @@
                 <p>{{ est.email }}</p>
                 <p>
                   <ion-badge color="primary">{{ contarDisciplinas(est) }} disciplina(s)</ion-badge>
+                  <ion-badge *ngIf="!est.acessoAtivo" color="medium" style="margin-left: 6px;">Sem acesso</ion-badge>
                 </p>
               </ion-label>
               <ion-buttons slot="end">
-                <!-- Botão + para abrir disciplinas -->
-                <ion-button
-                  fill="clear"
-                  color="tertiary"
-                  (click)="toggleDisciplinas(est.id)"
-                  title="Ver Disciplinas">
+                <ion-button fill="clear" color="tertiary" (click)="toggleDisciplinas(est.id)" title="Ver Disciplinas">
                   <ion-icon slot="icon-only" [name]="alunoExpandido === est.id ? 'remove-circle-outline' : 'add-circle-outline'"></ion-icon>
                 </ion-button>
-                <!-- Botão gráfico do aluno -->
-                <ion-button
-                  fill="clear"
-                  color="secondary"
-                  (click)="abrirGraficoAluno(est)"
-                  title="Ver Gráfico do Aluno">
+                <ion-button fill="clear" color="secondary" (click)="abrirGraficoAluno(est)" title="Ver Gráfico do Aluno">
                   <ion-icon slot="icon-only" name="bar-chart-outline"></ion-icon>
                 </ion-button>
-                <!-- Editar -->
                 <ion-button fill="clear" color="warning" (click)="iniciarEdicao(est)">
                   <ion-icon slot="icon-only" name="create-outline"></ion-icon>
                 </ion-button>
-                <!-- Excluir -->
                 <ion-button fill="clear" color="danger" (click)="excluirAlunoCrud(est.id)">
                   <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
                 </ion-button>
@@ -226,12 +223,9 @@
 
           </ion-item>
 
-          <!-- ================================================ -->
-          <!-- SUB-CRUD DE DISCIPLINAS (expansível com botão +) -->
-          <!-- ================================================ -->
+          <!-- SUB-CRUD DE DISCIPLINAS -->
           <ng-container *ngFor="let est of estudantesCrudExibidos">
             <div *ngIf="alunoExpandido === est.id" class="disciplinas-container ion-padding-start ion-padding-end">
-
               <ion-card color="light" style="margin: 4px 0 8px 0;">
                 <ion-card-header style="padding-bottom: 4px;">
                   <ion-card-title style="font-size: 15px; color: var(--ion-color-primary);">
@@ -239,33 +233,18 @@
                     Disciplinas de {{ est.nome }}
                   </ion-card-title>
                 </ion-card-header>
-
                 <ion-card-content>
-
-                  <!-- Formulário para adicionar disciplina -->
                   <ion-item lines="none">
-                    <ion-input
-                      [(ngModel)]="novaDisciplinaNome"
-                      placeholder="Nome da disciplina"
-                      style="flex: 1;">
-                    </ion-input>
-                    <ion-select
-                      [(ngModel)]="novaDisciplinaStatus"
-                      placeholder="Status"
-                      style="max-width: 140px;">
+                    <ion-input [(ngModel)]="novaDisciplinaNome" placeholder="Nome da disciplina" style="flex: 1;"></ion-input>
+                    <ion-select [(ngModel)]="novaDisciplinaStatus" placeholder="Status" style="max-width: 140px;">
                       <ion-select-option value="cursando">Cursando</ion-select-option>
                       <ion-select-option value="concluida">Concluída</ion-select-option>
                     </ion-select>
-                    <ion-button
-                      slot="end"
-                      size="small"
-                      color="primary"
-                      (click)="adicionarDisciplina(est.id)">
+                    <ion-button slot="end" size="small" color="primary" (click)="adicionarDisciplina(est.id)">
                       <ion-icon slot="icon-only" name="add-outline"></ion-icon>
                     </ion-button>
                   </ion-item>
 
-                  <!-- Lista: Disciplinas em Andamento -->
                   <ion-list-header style="padding-left: 0;">
                     <ion-label color="primary" style="font-size: 13px; font-weight: bold;">
                       <ion-icon name="time-outline" style="vertical-align: middle; margin-right: 4px;"></ion-icon>
@@ -273,26 +252,14 @@
                     </ion-label>
                   </ion-list-header>
 
-                  <ion-item
-                    *ngFor="let disc of getDisciplinasPorStatus(est.id, 'cursando')"
-                    lines="inset"
-                    style="--min-height: 40px;">
+                  <ion-item *ngFor="let disc of getDisciplinasPorStatus(est.id, 'cursando')" lines="inset" style="--min-height: 40px;">
                     <ion-badge slot="start" color="primary" style="margin-right: 8px;">Em curso</ion-badge>
                     <ion-label>{{ disc.nome }}</ion-label>
                     <ion-buttons slot="end">
-                      <ion-button
-                        fill="clear"
-                        color="success"
-                        size="small"
-                        (click)="concluirDisciplina(est.id, disc.id)"
-                        title="Marcar como Concluída">
+                      <ion-button fill="clear" color="success" size="small" (click)="concluirDisciplina(est.id, disc.id)">
                         <ion-icon slot="icon-only" name="checkmark-done-outline"></ion-icon>
                       </ion-button>
-                      <ion-button
-                        fill="clear"
-                        color="danger"
-                        size="small"
-                        (click)="removerDisciplina(est.id, disc.id)">
+                      <ion-button fill="clear" color="danger" size="small" (click)="removerDisciplina(est.id, disc.id)">
                         <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
                       </ion-button>
                     </ion-buttons>
@@ -302,7 +269,6 @@
                     <ion-label color="medium" style="font-size: 13px; font-style: italic;">Nenhuma disciplina em andamento.</ion-label>
                   </ion-item>
 
-                  <!-- Lista: Disciplinas Concluídas -->
                   <ion-list-header style="padding-left: 0; margin-top: 8px;">
                     <ion-label color="success" style="font-size: 13px; font-weight: bold;">
                       <ion-icon name="checkmark-circle-outline" style="vertical-align: middle; margin-right: 4px;"></ion-icon>
@@ -310,18 +276,11 @@
                     </ion-label>
                   </ion-list-header>
 
-                  <ion-item
-                    *ngFor="let disc of getDisciplinasPorStatus(est.id, 'concluida')"
-                    lines="inset"
-                    style="--min-height: 40px;">
+                  <ion-item *ngFor="let disc of getDisciplinasPorStatus(est.id, 'concluida')" lines="inset" style="--min-height: 40px;">
                     <ion-badge slot="start" color="success" style="margin-right: 8px;">Concluída</ion-badge>
                     <ion-label>{{ disc.nome }}</ion-label>
                     <ion-buttons slot="end">
-                      <ion-button
-                        fill="clear"
-                        color="danger"
-                        size="small"
-                        (click)="removerDisciplina(est.id, disc.id)">
+                      <ion-button fill="clear" color="danger" size="small" (click)="removerDisciplina(est.id, disc.id)">
                         <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
                       </ion-button>
                     </ion-buttons>
@@ -333,13 +292,11 @@
 
                 </ion-card-content>
               </ion-card>
-
             </div>
           </ng-container>
 
         </ion-list>
 
-        <!-- Lixeira info -->
         <ion-note *ngIf="lixeira.length > 0" color="medium" style="display: block; padding: 8px 16px;">
           <ion-icon name="trash-outline"></ion-icon>
           {{ lixeira.length }} registro(s) na lixeira local
@@ -348,9 +305,7 @@
       </ion-card-content>
     </ion-card>
 
-    <!-- ============================================================ -->
-    <!-- MODAL: CRIAR / EDITAR ALUNO                                 -->
-    <!-- ============================================================ -->
+    <!-- MODAL: CRIAR / EDITAR ALUNO -->
     <ion-modal [isOpen]="isModalCriarAberto" (didDismiss)="fecharModalCriar()">
       <ng-template>
         <ion-header>
@@ -365,27 +320,12 @@
         </ion-header>
         <ion-content class="ion-padding">
           <ion-item>
-            <ion-input
-              label="Nome Completo"
-              labelPlacement="floating"
-              [(ngModel)]="formNome"
-              placeholder="Ex: Nome Sobrenome"
-              (ionInput)="filtrarInput($event)">
-            </ion-input>
+            <ion-input label="Nome Completo" labelPlacement="floating" [(ngModel)]="formNome" placeholder="Ex: Nome Sobrenome" (ionInput)="filtrarInput($event)"></ion-input>
           </ion-item>
           <ion-item>
-            <ion-input
-              label="E-mail"
-              labelPlacement="floating"
-              [(ngModel)]="formEmail"
-              type="email"
-              placeholder="Ex: nome@email.com">
-            </ion-input>
+            <ion-input label="E-mail" labelPlacement="floating" [(ngModel)]="formEmail" type="email" placeholder="Ex: nome@email.com"></ion-input>
           </ion-item>
-          <ion-button
-            expand="block"
-            class="ion-margin-top"
-            (click)="salvarAluno()">
+          <ion-button expand="block" class="ion-margin-top" (click)="salvarAluno()">
             <ion-icon slot="start" name="save-outline"></ion-icon>
             {{ modoEdicaoModal ? 'Salvar Alterações' : 'Cadastrar Aluno' }}
           </ion-button>
@@ -393,9 +333,7 @@
       </ng-template>
     </ion-modal>
 
-    <!-- ============================================================ -->
-    <!-- MODAL: GRÁFICO DO ALUNO INDIVIDUAL                         -->
-    <!-- ============================================================ -->
+    <!-- MODAL: GRÁFICO DO ALUNO INDIVIDUAL -->
     <ion-modal [isOpen]="isModalGraficoAlunoAberto" (didPresent)="gerarGraficoAluno()" (didDismiss)="fecharGraficoAluno()">
       <ng-template>
         <ion-header>
@@ -409,7 +347,6 @@
           </ion-toolbar>
         </ion-header>
         <ion-content class="ion-padding">
-
           <ion-segment [(ngModel)]="graficoAlunoTipo" (ionChange)="gerarGraficoAluno()">
             <ion-segment-button value="pizza">
               <ion-icon name="pie-chart-outline"></ion-icon>
@@ -420,12 +357,9 @@
               <ion-label>Barras</ion-label>
             </ion-segment-button>
           </ion-segment>
-
           <div class="ion-margin-top" style="position: relative; height: 320px;">
             <canvas #graficoAlunoCanvas></canvas>
           </div>
-
-          <!-- Detalhes abaixo do gráfico -->
           <ion-list *ngIf="alunoSelecionadoGrafico" class="ion-margin-top" lines="full">
             <ion-list-header>
               <ion-label color="secondary">Resumo</ion-label>
@@ -433,26 +367,19 @@
             <ion-item>
               <ion-icon slot="start" name="time-outline" color="primary"></ion-icon>
               <ion-label>Cursando</ion-label>
-              <ion-badge slot="end" color="primary">
-                {{ getDisciplinasPorStatus(alunoSelecionadoGrafico.id, 'cursando').length }}
-              </ion-badge>
+              <ion-badge slot="end" color="primary">{{ getDisciplinasPorStatus(alunoSelecionadoGrafico.id, 'cursando').length }}</ion-badge>
             </ion-item>
             <ion-item>
               <ion-icon slot="start" name="checkmark-circle-outline" color="success"></ion-icon>
               <ion-label>Concluídas</ion-label>
-              <ion-badge slot="end" color="success">
-                {{ getDisciplinasPorStatus(alunoSelecionadoGrafico.id, 'concluida').length }}
-              </ion-badge>
+              <ion-badge slot="end" color="success">{{ getDisciplinasPorStatus(alunoSelecionadoGrafico.id, 'concluida').length }}</ion-badge>
             </ion-item>
           </ion-list>
-
         </ion-content>
       </ng-template>
     </ion-modal>
 
-    <!-- ============================================================ -->
-    <!-- MODAL DE GRÁFICOS DO SISTEMA                               -->
-    <!-- ============================================================ -->
+    <!-- MODAL DE GRÁFICOS DO SISTEMA -->
     <ion-modal [isOpen]="isModalOpen" (didPresent)="chamarGraficosIniciais()" (didDismiss)="setOpen(false)">
       <ng-template>
         <ion-header>
@@ -465,7 +392,6 @@
             </ion-buttons>
           </ion-toolbar>
         </ion-header>
-
         <ion-content class="ion-padding">
           <ion-segment [(ngModel)]="graficoSelecionado" (ionChange)="trocarGrafico()">
             <ion-segment-button value="barras">
@@ -477,26 +403,16 @@
               <ion-label>Pizza</ion-label>
             </ion-segment-button>
           </ion-segment>
-
-          <!-- Spinner enquanto carrega -->
           <div *ngIf="isLoading" class="ion-margin-top" style="height: 350px; display: flex; align-items: center; justify-content: center;">
             <ion-spinner name="circles" color="tertiary" style="transform: scale(2);"></ion-spinner>
           </div>
-
-          <!--
-            CORREÇÃO: o canvas SEMPRE existe no DOM, mas fica visível/invisível
-            via visibilidade. Isso garante que o @ViewChild encontre o elemento.
-          -->
-          <div
-            class="ion-margin-top"
-            [style.visibility]="isLoading ? 'hidden' : 'visible'"
-            [style.height]="'350px'">
+          <div class="ion-margin-top" [style.visibility]="isLoading ? 'hidden' : 'visible'" [style.height]="'350px'">
             <canvas #graficoCanvas></canvas>
           </div>
-
         </ion-content>
       </ng-template>
     </ion-modal>
 
   </ion-content>
 </div>
+
