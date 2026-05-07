@@ -9,7 +9,8 @@ import {
   personOutline, mailOutline, lockClosedOutline,
   createOutline, shieldCheckmarkOutline, fingerPrintOutline,
   warningOutline, checkmarkCircleOutline, ellipse,
-  imageOutline, menuOutline, qrCodeOutline
+  imageOutline, menuOutline, qrCodeOutline,
+  cameraOutline
 } from 'ionicons/icons';
 
 interface DadosUsuario {
@@ -34,6 +35,7 @@ export class PerfilPage implements OnInit {
   nomeDirty: boolean = false;
   salvando: boolean = false;
   salvouOk: boolean = false;
+  fotoPerfilUrl: string | null = null;
 
   // ── Texto editável ────────────────────────────────────
   textoUsuario: string = '';
@@ -52,7 +54,8 @@ export class PerfilPage implements OnInit {
       personOutline, mailOutline, lockClosedOutline,
       createOutline, shieldCheckmarkOutline, fingerPrintOutline,
       warningOutline, checkmarkCircleOutline, ellipse,
-      imageOutline, menuOutline, qrCodeOutline
+      imageOutline, menuOutline, qrCodeOutline,
+      cameraOutline
     });
   }
 
@@ -87,6 +90,7 @@ export class PerfilPage implements OnInit {
         perfil: payload.perfil ?? 'user1'
       };
       this.nomeOriginal = this.dados.nome;
+      this.carregarFotoPerfil();
     } catch(e) {
       this.navCtrl.navigateRoot('/login');
     }
@@ -105,6 +109,58 @@ export class PerfilPage implements OnInit {
 
   toggleConsultor() {
     this.consultorAberto = !this.consultorAberto;
+  }
+
+  private getFotoPerfilKey(): string {
+    const identificador = this.dados.id ?? (this.dados.email || 'usuario');
+    return `fotoPerfil:${identificador}`;
+  }
+
+  private carregarFotoPerfil() {
+    this.fotoPerfilUrl = localStorage.getItem(this.getFotoPerfilKey());
+  }
+
+  selecionarFotoPerfil(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const arquivo = input.files?.[0];
+
+    if (!arquivo) return;
+
+    if (!arquivo.type.startsWith('image/')) {
+      this.showToast('Selecione uma imagem válida.', 'warning');
+      input.value = '';
+      return;
+    }
+
+    if (arquivo.size > 2 * 1024 * 1024) {
+      this.showToast('Escolha uma imagem de até 2MB.', 'warning');
+      input.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const resultado = typeof reader.result === 'string' ? reader.result : null;
+      if (!resultado) {
+        this.showToast('Não foi possível carregar a imagem.', 'danger');
+        return;
+      }
+
+      try {
+        localStorage.setItem(this.getFotoPerfilKey(), resultado);
+        this.fotoPerfilUrl = resultado;
+        this.showToast('Foto de perfil atualizada!');
+      } catch {
+        this.showToast('Imagem muito grande para salvar localmente.', 'danger');
+      } finally {
+        input.value = '';
+      }
+    };
+    reader.onerror = () => {
+      this.showToast('Erro ao ler a imagem.', 'danger');
+      input.value = '';
+    };
+    reader.readAsDataURL(arquivo);
   }
 
   salvar() {

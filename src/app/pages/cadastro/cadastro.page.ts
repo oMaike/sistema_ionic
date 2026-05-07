@@ -125,8 +125,8 @@ export class CadastroPage {
       case 'senha':
         if (!this.novoUsuario.senha) {
           this.erros.senha = 'Senha é obrigatória.';
-        } else if (this.novoUsuario.senha.length < 6) {
-          this.erros.senha = 'A senha deve ter no mínimo 6 caracteres.';
+        } else if (!this.isSenhaForte(this.novoUsuario.senha)) {
+          this.erros.senha = 'A senha deve ter no mínimo 8 caracteres, com letras e números.';
         } else {
           this.erros.senha = '';
         }
@@ -169,7 +169,7 @@ export class CadastroPage {
     }
 
     let score = 0;
-    if (senha.length >= 6)  score++;
+    if (senha.length >= 8)  score++;
     if (senha.length >= 10) score++;
     if (/[A-Z]/.test(senha)) score++;
     if (/[0-9]/.test(senha)) score++;
@@ -189,6 +189,10 @@ export class CadastroPage {
   // ── Validação de e-mail ───────────────────────────────────
   private isEmailValido(email: string): boolean {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }
+
+  private isSenhaForte(senha: string): boolean {
+    return senha.length >= 8 && /[A-Za-z]/.test(senha) && /[0-9]/.test(senha);
   }
 
   // ── Envio do formulário ───────────────────────────────────

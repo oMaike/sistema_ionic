@@ -1,13 +1,13 @@
 const express = require('express');
-var cors = require('cors');
-const connection = require('./connection');
-const userRoute = require('./routes/index'); // ← só muda isso
+require('./connection');
+const userRoute = require('./routes/index');
+const { applySecurity } = require('./security');
 
 const app = express();
 
-app.use(cors());
-app.use(express.urlencoded({extended: true}));
-app.use(express.json());
+applySecurity(app);
+app.use(express.urlencoded({ extended: false, limit: '100kb' }));
+app.use(express.json({ limit: '100kb' }));
 app.use('/user', userRoute);
 
 module.exports = app;

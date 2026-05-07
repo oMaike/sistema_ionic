@@ -18,7 +18,8 @@ import {
   cloudDownloadOutline, chevronForwardOutline,
   personCircleOutline, pieChartOutline, checkmarkCircleOutline,
   createOutline, saveOutline, removeCircleOutline, addCircleOutline,
-  schoolOutline, timeOutline, checkmarkDoneOutline
+  schoolOutline, timeOutline, checkmarkDoneOutline,
+  cameraOutline, logOutOutline
 } from 'ionicons/icons';
 import { Chart, registerables } from 'chart.js';
 
@@ -132,6 +133,10 @@ export class AdminPanelPage implements OnInit {
   // ----------------------------------------------------------------
   lixeira: string[] = [];
   nomeEstudante: string = '';
+  adminId: number | null = null;
+  adminNome: string = 'Admin';
+  adminEmail: string = '';
+  fotoPerfilUrl: string | null = null;
 
   private readonly API_URL = 'http://localhost:9090/user';
 
@@ -150,11 +155,13 @@ export class AdminPanelPage implements OnInit {
       cloudDownloadOutline, chevronForwardOutline,
       personCircleOutline, pieChartOutline, checkmarkCircleOutline,
       createOutline, saveOutline, removeCircleOutline, addCircleOutline,
-      schoolOutline, timeOutline, checkmarkDoneOutline
+      schoolOutline, timeOutline, checkmarkDoneOutline,
+      cameraOutline, logOutOutline
     });
   }
 
   ngOnInit() {
+    this.carregarAdminDoToken();
     this.carregarPendentes();
     this.sincronizarCrudComBanco();
   }
@@ -184,6 +191,103 @@ export class AdminPanelPage implements OnInit {
 
   private handleError(msg: string) {
     this.showToast(msg, 'danger');
+  }
+
+  private carregarAdminDoToken() {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const payload = JSON.parse(atob(base64));
+
+      this.adminId = payload.id ?? null;
+      this.adminNome = payload.nome ?? 'Admin';
+      this.adminEmail = payload.email ?? '';
+      this.carregarFotoPerfil();
+    } catch {
+      this.adminId = null;
+      this.adminNome = 'Admin';
+      this.adminEmail = '';
+    }
+  }
+
+  getIniciaisAdmin(): string {
+    const partes = (this.adminNome || 'A').trim().split(' ');
+    if (partes.length === 1) return partes[0][0].toUpperCase();
+    return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
+  }
+
+  private getFotoPerfilKey(): string {
+    const identificador = this.adminId ?? (this.adminEmail || 'admin');
+    return `fotoPerfil:${identificador}`;
+  }
+
+  private carregarFotoPerfil() {
+    this.fotoPerfilUrl = localStorage.getItem(this.getFotoPerfilKey());
+  }
+
+  selecionarFotoPerfil(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const arquivo = input.files?.[0];
+
+    if (!arquivo) return;
+
+    if (!arquivo.type.startsWith('image/')) {
+      this.showToast('Selecione uma imagem válida.', 'warning');
+      input.value = '';
+      return;
+    }
+
+    if (arquivo.size > 2 * 1024 * 1024) {
+      this.showToast('Escolha uma imagem de até 2MB.', 'warning');
+      input.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const resultado = typeof reader.result === 'string' ? reader.result : null;
+      if (!resultado) {
+        this.showToast('Não foi possível carregar a imagem.', 'danger');
+        return;
+      }
+
+      try {
+        localStorage.setItem(this.getFotoPerfilKey(), resultado);
+        this.fotoPerfilUrl = resultado;
+        this.showToast('Foto de perfil atualizada!');
+      } catch {
+        this.showToast('Imagem muito grande para salvar localmente.', 'danger');
+      } finally {
+        input.value = '';
+      }
+    };
+    reader.onerror = () => {
+      this.showToast('Erro ao ler a imagem.', 'danger');
+      input.value = '';
+    };
+    reader.readAsDataURL(arquivo);
+  }
+
+  async logout() {
+    const alert = await this.alertCtrl.create({
+      header: 'Sair',
+      message: 'Deseja encerrar sua sessão de administrador?',
+      buttons: [
+        { text: 'Cancelar', role: 'cancel' },
+        {
+          text: 'Sair',
+          handler: async () => {
+            localStorage.removeItem('token');
+            await this.menuCtrl.close();
+            await this.router.navigate(['/login']);
+          }
+        }
+      ]
+    });
+    await alert.present();
   }
 
   // ================================================================

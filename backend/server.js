@@ -1,13 +1,14 @@
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
 const http = require('http');
+const { applySecurity } = require('./security');
 
 const app = express();
 
 // Middlewares globais
-app.use(cors());
-app.use(express.json());
+applySecurity(app);
+app.use(express.urlencoded({ extended: false, limit: '100kb' }));
+app.use(express.json({ limit: '100kb' }));
 
 // Rotas
 const userRoutes = require('./routes/index');

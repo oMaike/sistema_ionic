@@ -38,8 +38,8 @@ export class ResetPasswordPage implements OnInit {
       return;
     }
 
-    if (this.newPassword.length < 6) {
-      this.exibirToast('A senha deve ter no mínimo 6 caracteres.', 'warning');
+    if (!this.isSenhaForte(this.newPassword)) {
+      this.exibirToast('A senha deve ter no mínimo 8 caracteres, com letras e números.', 'warning');
       return;
     }
 
@@ -77,5 +77,9 @@ export class ResetPasswordPage implements OnInit {
       position: 'bottom'
     });
     toast.present();
+  }
+
+  private isSenhaForte(senha: string): boolean {
+    return senha.length >= 8 && /[A-Za-z]/.test(senha) && /[0-9]/.test(senha);
   }
 }

@@ -1,8 +1,15 @@
+const crypto = require('crypto');
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
 const { query } = require('../utils/dbQuery');
-const { isValidEmail } = require('../utils/validators');
+const {
+    isValidEmail,
+    isValidName,
+    normalizeEmail,
+    normalizeName,
+    toPositiveInt
+} = require('../utils/validators');
 const { asyncHandler } = require('../middlewares/asyncHandler');
 const { authenticateToken, isAdmin } = require('../middlewares/auth.middleware');
 const {
@@ -10,36 +17,42 @@ const {
     enviarEmailDesativacao
 } = require('../services/email.service');
 
-// Todas as rotas admin exigem token + perfil admin
 router.use(authenticateToken, isAdmin);
 
-// ── Aprovações ───────────────────────────────────────────────────
+const getManagedUser = async (id) => {
+    const safeId = toPositiveInt(id);
+    if (!safeId) return null;
 
-/**
- * GET /pendentes
- */
-router.get('/pendentes', asyncHandler(async (req, res) => {
+    const users = await query(
+        "SELECT id, nome, email, aprovado, perfil FROM user WHERE id = ? AND perfil != 'admin' LIMIT 1",
+        [safeId]
+    );
+
+    return users[0] || null;
+};
+
+const ensureManagedStudentId = async (id) => {
+    const user = await getManagedUser(id);
+    return user ? user.id : null;
+};
+
+// Aprovações
+
+router.get('/pendentes', asyncHandler(async (_req, res) => {
     const results = await query(
-        'SELECT id, nome, email, perfil FROM user WHERE aprovado = 0 ORDER BY id DESC'
+        "SELECT id, nome, email, perfil FROM user WHERE aprovado = 0 AND perfil != 'admin' ORDER BY id DESC"
     );
     return res.status(200).json(results);
 }));
 
-/**
- * PATCH /aprovar
- */
 router.patch('/aprovar', asyncHandler(async (req, res) => {
-    const { id } = req.body;
-    if (!id) return res.status(400).json({ message: 'ID é obrigatório.' });
+    const user = await getManagedUser(req.body.id);
+    if (!user) return res.status(404).json({ message: 'Usuário não encontrado.' });
 
-    const users = await query('SELECT nome, email FROM user WHERE id = ?', [id]);
-    if (users.length === 0)
-        return res.status(404).json({ message: 'Usuário não encontrado.' });
-
-    await query('UPDATE user SET aprovado = 1 WHERE id = ?', [id]);
+    await query("UPDATE user SET aprovado = 1 WHERE id = ? AND perfil != 'admin'", [user.id]);
 
     try {
-        await enviarEmailAprovacao(users[0]);
+        await enviarEmailAprovacao(user);
         return res.status(200).json({ message: 'Usuário aprovado e e-mail enviado!' });
     } catch (mailError) {
         console.error('Erro ao enviar e-mail de aprovação:', mailError);
@@ -47,24 +60,16 @@ router.patch('/aprovar', asyncHandler(async (req, res) => {
     }
 }));
 
-/**
- * PATCH /desativar
- * Desativa o acesso de um usuário e envia e-mail de notificação.
- */
 router.patch('/desativar', asyncHandler(async (req, res) => {
-    const { id } = req.body;
-    if (!id) return res.status(400).json({ message: 'ID é obrigatório.' });
+    const user = await getManagedUser(req.body.id);
+    if (!user) return res.status(404).json({ message: 'Usuário não encontrado.' });
 
-    const users = await query('SELECT nome, email, aprovado FROM user WHERE id = ?', [id]);
-    if (users.length === 0)
-        return res.status(404).json({ message: 'Usuário não encontrado.' });
-
-    const novoStatus = users[0].aprovado === 1 ? 0 : 1;
-    await query('UPDATE user SET aprovado = ? WHERE id = ?', [novoStatus, id]);
+    const novoStatus = user.aprovado === 1 ? 0 : 1;
+    await query("UPDATE user SET aprovado = ? WHERE id = ? AND perfil != 'admin'", [novoStatus, user.id]);
 
     if (novoStatus === 0) {
         try {
-            await enviarEmailDesativacao(users[0]);
+            await enviarEmailDesativacao(user);
         } catch (mailError) {
             console.error('Erro ao enviar e-mail de desativação:', mailError);
         }
@@ -74,20 +79,20 @@ router.patch('/desativar', asyncHandler(async (req, res) => {
     return res.status(200).json({ message: 'Acesso reativado com sucesso.' });
 }));
 
-/**
- * DELETE /delete/:id
- */
 router.delete('/delete/:id', asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    const result = await query('DELETE FROM user WHERE id = ?', [id]);
+    const id = toPositiveInt(req.params.id);
+    if (!id) return res.status(400).json({ message: 'ID inválido.' });
+
+    const result = await query("DELETE FROM user WHERE id = ? AND perfil != 'admin'", [id]);
     if (result.affectedRows === 0)
         return res.status(404).json({ message: 'Usuário não encontrado.' });
+
     return res.status(200).json({ message: 'Usuário removido com sucesso.' });
 }));
 
-// ── Estudantes / CRUD ─────────────────────────────────────────────
+// Estudantes / CRUD
 
-router.get('/estudantes-com-disciplinas', asyncHandler(async (req, res) => {
+router.get('/estudantes-com-disciplinas', asyncHandler(async (_req, res) => {
     const results = await query(`
         SELECT
             u.id, u.nome, u.email, u.aprovado,
@@ -103,69 +108,90 @@ router.get('/estudantes-com-disciplinas', asyncHandler(async (req, res) => {
 }));
 
 router.post('/criar', asyncHandler(async (req, res) => {
-    const { nome, email } = req.body;
-    if (!nome?.trim()) return res.status(400).json({ message: 'Nome é obrigatório.' });
+    const nome = normalizeName(req.body.nome);
+    const email = normalizeEmail(req.body.email);
+
+    if (!isValidName(nome)) return res.status(400).json({ message: 'Nome deve ter entre 3 e 100 caracteres.' });
     if (!isValidEmail(email)) return res.status(400).json({ message: 'E-mail inválido.' });
 
-    const existente = await query('SELECT id FROM user WHERE email = ?', [email.toLowerCase()]);
+    const existente = await query('SELECT id FROM user WHERE email = ?', [email]);
     if (existente.length > 0)
         return res.status(409).json({ message: 'E-mail já cadastrado.' });
 
-    const senhaHash = await bcrypt.hash('trocar123', 10);
+    const senhaTemporaria = crypto.randomBytes(12).toString('base64url');
+    const senhaHash = await bcrypt.hash(senhaTemporaria, 12);
     const result = await query(
         'INSERT INTO user (nome, email, senha, aprovado, perfil) VALUES (?, ?, ?, 1, ?)',
-        [nome.trim(), email.toLowerCase(), senhaHash, 'user1']
+        [nome, email, senhaHash, 'user1']
     );
-    return res.status(201).json({ id: result.insertId, nome: nome.trim(), email });
+
+    return res.status(201).json({ id: result.insertId, nome, email, senhaTemporaria });
 }));
 
 router.put('/atualizar/:id', asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    const { nome, email } = req.body;
-    if (!nome?.trim()) return res.status(400).json({ message: 'Nome é obrigatório.' });
+    const id = toPositiveInt(req.params.id);
+    const nome = normalizeName(req.body.nome);
+    const email = req.body.email ? normalizeEmail(req.body.email) : '';
+
+    if (!id) return res.status(400).json({ message: 'ID inválido.' });
+    if (!isValidName(nome)) return res.status(400).json({ message: 'Nome deve ter entre 3 e 100 caracteres.' });
     if (email && !isValidEmail(email)) return res.status(400).json({ message: 'E-mail inválido.' });
+
+    const user = await getManagedUser(id);
+    if (!user) return res.status(404).json({ message: 'Usuário não encontrado.' });
 
     if (email) {
         const conflito = await query(
             'SELECT id FROM user WHERE email = ? AND id != ?',
-            [email.toLowerCase(), id]
+            [email, id]
         );
         if (conflito.length > 0)
             return res.status(409).json({ message: 'E-mail já está em uso.' });
     }
 
-    const sql = email ? 'UPDATE user SET nome = ?, email = ? WHERE id = ?' : 'UPDATE user SET nome = ? WHERE id = ?';
-    const params = email ? [nome.trim(), email.toLowerCase(), id] : [nome.trim(), id];
+    const sql = email
+        ? "UPDATE user SET nome = ?, email = ? WHERE id = ? AND perfil != 'admin'"
+        : "UPDATE user SET nome = ? WHERE id = ? AND perfil != 'admin'";
+    const params = email ? [nome, email, id] : [nome, id];
     const result = await query(sql, params);
+
     if (result.affectedRows === 0)
         return res.status(404).json({ message: 'Usuário não encontrado.' });
+
     return res.status(200).json({ message: 'Usuário atualizado com sucesso.' });
 }));
 
-// ── Disciplinas ───────────────────────────────────────────────────
+// Disciplinas
 
 router.get('/disciplinas/:alunoId', asyncHandler(async (req, res) => {
+    const alunoId = await ensureManagedStudentId(req.params.alunoId);
+    if (!alunoId) return res.status(404).json({ message: 'Aluno não encontrado.' });
+
     const results = await query(`
         SELECT d.id, d.nome, ad.status
         FROM disciplinas d
         INNER JOIN aluno_disciplinas ad ON d.id = ad.disciplina_id
         WHERE ad.aluno_id = ?
         ORDER BY ad.status ASC, d.nome ASC
-    `, [req.params.alunoId]);
+    `, [alunoId]);
     return res.status(200).json(results);
 }));
 
 router.post('/disciplinas/:alunoId', asyncHandler(async (req, res) => {
-    const { alunoId } = req.params;
-    const { nome, status = 'cursando' } = req.body;
-    if (!nome?.trim()) return res.status(400).json({ message: 'Nome da disciplina é obrigatório.' });
+    const alunoId = await ensureManagedStudentId(req.params.alunoId);
+    const nome = normalizeName(req.body.nome);
+    const status = req.body.status || 'cursando';
+
+    if (!alunoId) return res.status(404).json({ message: 'Aluno não encontrado.' });
+    if (!isValidName(nome)) return res.status(400).json({ message: 'Nome da disciplina deve ter entre 3 e 100 caracteres.' });
     if (!['cursando', 'concluida'].includes(status))
         return res.status(400).json({ message: 'Status inválido.' });
 
-    let disciplinas = await query('SELECT id FROM disciplinas WHERE nome = ?', [nome.trim()]);
+    let disciplinas = await query('SELECT id FROM disciplinas WHERE nome = ?', [nome]);
     let disciplinaId;
+
     if (disciplinas.length === 0) {
-        const insert = await query('INSERT INTO disciplinas (nome) VALUES (?)', [nome.trim()]);
+        const insert = await query('INSERT INTO disciplinas (nome) VALUES (?)', [nome]);
         disciplinaId = insert.insertId;
     } else {
         disciplinaId = disciplinas[0].id;
@@ -182,42 +208,54 @@ router.post('/disciplinas/:alunoId', asyncHandler(async (req, res) => {
         'INSERT INTO aluno_disciplinas (aluno_id, disciplina_id, status) VALUES (?, ?, ?)',
         [alunoId, disciplinaId, status]
     );
-    return res.status(201).json({ disciplinaId, nome: nome.trim(), status });
+    return res.status(201).json({ disciplinaId, nome, status });
 }));
 
 router.patch('/disciplinas/:alunoId/:disciplinaId', asyncHandler(async (req, res) => {
-    const { alunoId, disciplinaId } = req.params;
+    const alunoId = await ensureManagedStudentId(req.params.alunoId);
+    const disciplinaId = toPositiveInt(req.params.disciplinaId);
     const { status } = req.body;
+
+    if (!alunoId || !disciplinaId)
+        return res.status(404).json({ message: 'Vínculo não encontrado.' });
     if (!['cursando', 'concluida'].includes(status))
         return res.status(400).json({ message: 'Status inválido.' });
+
     const result = await query(
         'UPDATE aluno_disciplinas SET status = ? WHERE aluno_id = ? AND disciplina_id = ?',
         [status, alunoId, disciplinaId]
     );
     if (result.affectedRows === 0)
         return res.status(404).json({ message: 'Vínculo não encontrado.' });
+
     return res.status(200).json({ message: 'Status atualizado.' });
 }));
 
 router.delete('/disciplinas/:alunoId/:disciplinaId', asyncHandler(async (req, res) => {
-    const { alunoId, disciplinaId } = req.params;
+    const alunoId = await ensureManagedStudentId(req.params.alunoId);
+    const disciplinaId = toPositiveInt(req.params.disciplinaId);
+
+    if (!alunoId || !disciplinaId)
+        return res.status(404).json({ message: 'Vínculo não encontrado.' });
+
     const result = await query(
         'DELETE FROM aluno_disciplinas WHERE aluno_id = ? AND disciplina_id = ?',
         [alunoId, disciplinaId]
     );
     if (result.affectedRows === 0)
         return res.status(404).json({ message: 'Vínculo não encontrado.' });
+
     return res.status(200).json({ message: 'Disciplina removida do aluno.' });
 }));
 
-// ── Estatísticas ──────────────────────────────────────────────────
+// Estatísticas
 
-router.get('/estatisticas', asyncHandler(async (req, res) => {
+router.get('/estatisticas', asyncHandler(async (_req, res) => {
     const [rowAprovados] = await query(
         "SELECT COUNT(*) AS total FROM user WHERE aprovado = 1 AND perfil != 'admin'"
     );
     const [rowPendentes] = await query(
-        'SELECT COUNT(*) AS total FROM user WHERE aprovado = 0'
+        "SELECT COUNT(*) AS total FROM user WHERE aprovado = 0 AND perfil != 'admin'"
     );
 
     let meses = [], contagem = [];
@@ -226,6 +264,7 @@ router.get('/estatisticas', asyncHandler(async (req, res) => {
             SELECT DATE_FORMAT(data_criacao, '%b/%Y') AS mes, COUNT(*) AS quantidade
             FROM user
             WHERE data_criacao >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+              AND perfil != 'admin'
             GROUP BY YEAR(data_criacao), MONTH(data_criacao)
             ORDER BY data_criacao ASC
         `);

@@ -70,7 +70,27 @@
       </ion-menu-toggle>
     </ion-buttons>
     <ion-title class="perfil-toolbar-title">Meu Perfil</ion-title>
-    <ion-buttons slot="end">
+    <ion-buttons slot="end" class="perfil-toolbar-actions">
+      <ion-button
+        class="perfil-profile-button"
+        fill="clear"
+        title="Alterar foto de perfil"
+        (click)="fotoPerfilInput.click()">
+        <ion-avatar>
+          <img
+            *ngIf="fotoPerfilUrl"
+            [src]="fotoPerfilUrl"
+            alt="Foto de perfil">
+          <span *ngIf="!fotoPerfilUrl" class="perfil-profile-initials">{{ getIniciais() }}</span>
+          <ion-icon name="camera-outline" class="perfil-profile-camera"></ion-icon>
+        </ion-avatar>
+      </ion-button>
+      <input
+        #fotoPerfilInput
+        type="file"
+        accept="image/*"
+        class="perfil-file-input"
+        (change)="selecionarFotoPerfil($event)">
       <ion-button class="btn-logout" (click)="logout()" title="Sair">
         <ion-icon name="log-out-outline" slot="icon-only"></ion-icon>
       </ion-button>
@@ -87,7 +107,6 @@
   </div>
 
   <div class="perfil-wrapper">
-
     <!-- Card de edição -->
     <div class="edit-card">
       <div class="edit-card-header">

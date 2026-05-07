@@ -126,7 +126,36 @@
           </ion-button>
         </ion-menu-toggle>
       </ion-buttons>
-      <ion-title></ion-title>
+      <ion-title>Painel Admin</ion-title>
+      <ion-buttons slot="end" class="admin-toolbar-actions">
+        <ion-button
+          class="admin-profile-button"
+          fill="clear"
+          title="Alterar foto de perfil"
+          (click)="adminFotoInput.click()">
+          <ion-avatar>
+            <img
+              *ngIf="fotoPerfilUrl"
+              [src]="fotoPerfilUrl"
+              alt="Foto de perfil">
+            <span *ngIf="!fotoPerfilUrl" class="admin-profile-initials">{{ getIniciaisAdmin() }}</span>
+            <ion-icon name="camera-outline" class="admin-profile-camera"></ion-icon>
+          </ion-avatar>
+        </ion-button>
+        <input
+          #adminFotoInput
+          type="file"
+          accept="image/*"
+          class="admin-file-input"
+          (change)="selecionarFotoPerfil($event)">
+        <ion-button
+          class="admin-logout-button"
+          fill="clear"
+          title="Sair"
+          (click)="logout()">
+          <ion-icon slot="icon-only" name="log-out-outline"></ion-icon>
+        </ion-button>
+      </ion-buttons>
     </ion-toolbar>
   </ion-header>
 
