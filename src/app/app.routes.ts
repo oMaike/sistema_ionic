@@ -32,6 +32,11 @@ export const routes: Routes = [
     canActivate: [adminGuard],
   },
   {
+    path: 'admin-queijos',
+    loadComponent: () => import('./pages/admin-queijos/admin-queijos.page').then(m => m.AdminQueijosPage),
+    canActivate: [adminGuard],
+  },
+  {
     path: 'cadastro',
     loadComponent: () => import('./pages/cadastro/cadastro.page').then(m => m.CadastroPage),
   },

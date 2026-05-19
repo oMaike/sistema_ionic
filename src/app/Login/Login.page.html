@@ -1,40 +1,80 @@
-<ion-content class="ion-padding">
-  <ion-card>
-    
-    <form (ngSubmit)="fazerLogin()">
-      <ion-item>
-        <ion-input 
-          name="email"
-          type="email" 
-          label="E-mail" 
-          labelPlacement="floating" 
-          [(ngModel)]="usuario.email" 
-          placeholder="Digite o usuário">
-        </ion-input>
-      </ion-item>
+<ion-content class="login-content" [fullscreen]="true">
+  <main class="login-shell">
+    <section class="login-card" aria-label="Acesso ao sistema">
+      <div class="login-visual">
+        <div class="brand-mark">
+          <img src="assets/icon/favicon.png" alt="Sistema">
+        </div>
+        <div class="visual-copy">
+          <span class="eyebrow">Painel acadêmico</span>
+          <h1>Bem-vindo</h1>
+          <p>Acesse sua conta para continuar.</p>
+        </div>
+      </div>
 
-      <ion-item>
-        <ion-input 
-          name="senha"
-          type="password" 
-          label="Senha" 
-          labelPlacement="floating" 
-          [(ngModel)]="usuario.senha" 
-          placeholder="Digite a senha">
-        </ion-input>
-      </ion-item>
+      <form
+        class="login-form"
+        (ngSubmit)="fazerLogin()"
+        (keydown.enter)="$event.preventDefault(); fazerLogin()">
+        <div class="field-group">
+          <label class="field-label">
+            <ion-icon name="mail-outline"></ion-icon>
+            E-mail
+          </label>
+          <div class="field-input">
+            <ion-input
+              name="email"
+              type="email"
+              [(ngModel)]="usuario.email"
+              placeholder="nome@email.com"
+              autocomplete="email"
+              inputmode="email">
+            </ion-input>
+          </div>
+        </div>
 
-      <ion-button type="submit" expand="block" fill="outline">
-        Login
-      </ion-button>
-    </form>
-    <ion-button type="button" expand="block" fill="clear" (click)="irParaCadastro()">
-      Criar Nova Conta (Cadastrar)
-    </ion-button>
+        <div class="field-group">
+          <label class="field-label">
+            <ion-icon name="lock-closed-outline"></ion-icon>
+            Senha
+          </label>
+          <div class="field-input">
+            <ion-input
+              name="senha"
+              type="password"
+              [(ngModel)]="usuario.senha"
+              placeholder="Digite sua senha"
+              autocomplete="current-password">
+              <ion-input-password-toggle slot="end"></ion-input-password-toggle>
+            </ion-input>
+          </div>
+        </div>
 
-    <ion-button type="button" expand="block" fill="clear" (click)="recuperarSenha()">
-      Recuperar senha
-    </ion-button>
-    
-  </ion-card>
+        <ion-button
+          type="button"
+          expand="block"
+          class="btn-login"
+          [disabled]="isLoading || !usuario.email.trim() || !usuario.senha"
+          (click)="fazerLogin()">
+          <ion-spinner *ngIf="isLoading" name="crescent"></ion-spinner>
+          <ng-container *ngIf="!isLoading">
+            <ion-icon name="log-in-outline" slot="start"></ion-icon>
+            Entrar
+          </ng-container>
+        </ion-button>
+      </form>
+
+      <div class="login-actions">
+        <ion-button type="button" fill="clear" class="action-button" (click)="irParaCadastro()">
+          <ion-icon name="person-add-outline" slot="start"></ion-icon>
+          Cadastrar
+        </ion-button>
+
+        <ion-button type="button" fill="clear" class="action-button" (click)="recuperarSenha()">
+          <ion-icon name="key-outline" slot="start"></ion-icon>
+          Recuperar senha
+        </ion-button>
+      </div>
+    </section>
+  </main>
 </ion-content>

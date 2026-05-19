@@ -1,0 +1,223 @@
+<ion-header>
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/admin-panel"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Queijos</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding queijos-content">
+  <section class="queijo-form">
+    <div class="image-picker">
+      <div class="image-preview">
+        <img *ngIf="form.imagemUrl" [src]="form.imagemUrl" alt="Imagem do queijo">
+        <ion-icon *ngIf="!form.imagemUrl" name="image-outline"></ion-icon>
+      </div>
+
+      <div class="image-actions">
+        <ion-button size="small" fill="outline" color="primary" (click)="imagemInput.click()">
+          <ion-icon slot="start" name="image-outline"></ion-icon>
+          Imagem
+        </ion-button>
+        <ion-button
+          *ngIf="form.imagemUrl"
+          size="small"
+          fill="clear"
+          color="medium"
+          (click)="removerImagem()">
+          Remover
+        </ion-button>
+        <input
+          #imagemInput
+          type="file"
+          accept="image/*"
+          class="file-input"
+          (change)="selecionarImagem($event)">
+      </div>
+    </div>
+
+    <div class="form-fields">
+      <ion-item>
+        <ion-input
+          label="Nome"
+          labelPlacement="stacked"
+          [(ngModel)]="form.nome"
+          placeholder="Ex: Minas artesanal">
+        </ion-input>
+      </ion-item>
+
+      <ion-item>
+        <ion-textarea
+          label="Descricao"
+          labelPlacement="stacked"
+          [(ngModel)]="form.descricao"
+          placeholder="Resumo do queijo"
+          autoGrow="true">
+        </ion-textarea>
+      </ion-item>
+
+      <ion-item>
+        <ion-input
+          label="Tipo"
+          labelPlacement="stacked"
+          [(ngModel)]="form.tipo"
+          placeholder="Ex: Fresco, curado, azul">
+        </ion-input>
+      </ion-item>
+
+      <ion-item>
+        <ion-input
+          label="Origem"
+          labelPlacement="stacked"
+          [(ngModel)]="form.origem"
+          placeholder="Ex: Minas Gerais">
+        </ion-input>
+      </ion-item>
+
+      <ion-item>
+        <ion-textarea
+          label="Informacao nutricional"
+          labelPlacement="stacked"
+          [(ngModel)]="form.informacaoNutricional"
+          placeholder="Ex: Calorias, proteinas, gorduras"
+          autoGrow="true">
+        </ion-textarea>
+      </ion-item>
+
+      <div class="location-capture">
+        <div>
+          <h3>Capturar localizacao</h3>
+          <p>Atualiza a lista com os usuarios que aceitaram a geolocalizacao em tempo real.</p>
+        </div>
+
+        <ion-button
+          fill="outline"
+          color="primary"
+          [disabled]="isLoadingLocalizacoes"
+          (click)="capturarLocalizacaoAtual()">
+          <ion-icon slot="start" name="locate-outline"></ion-icon>
+          {{ isLoadingLocalizacoes ? 'Atualizando...' : 'Atualizar localizacoes' }}
+        </ion-button>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <ion-button expand="block" color="primary" (click)="salvarQueijo()">
+        <ion-icon slot="start" [name]="editandoId === null ? 'add-outline' : 'save-outline'"></ion-icon>
+        {{ editandoId === null ? 'Cadastrar queijo' : 'Salvar alteracoes' }}
+      </ion-button>
+
+      <ion-button
+        *ngIf="editandoId !== null"
+        expand="block"
+        fill="clear"
+        color="medium"
+        (click)="cancelarEdicao()">
+        <ion-icon slot="start" name="close-outline"></ion-icon>
+        Cancelar
+      </ion-button>
+    </div>
+  </section>
+
+  <section class="login-locations">
+    <div class="section-title">
+      <ion-icon name="location-outline"></ion-icon>
+      <div>
+        <h2>Localizacoes em tempo real</h2>
+        <p>Ultima posicao dos usuarios com consentimento ativo.</p>
+      </div>
+    </div>
+
+    <ion-list lines="full">
+      <ion-item *ngIf="isLoadingLocalizacoes">
+        <ion-icon slot="start" name="location-outline" color="primary"></ion-icon>
+        <ion-label color="medium">Atualizando localizacoes...</ion-label>
+      </ion-item>
+
+      <ion-item *ngIf="!isLoadingLocalizacoes && localizacoesLogin.length === 0">
+        <ion-icon slot="start" name="location-outline" color="medium"></ion-icon>
+        <ion-label color="medium">Nenhum usuario aprovado encontrado.</ion-label>
+      </ion-item>
+
+      <ion-item *ngFor="let loc of localizacoesLogin">
+        <ion-icon slot="start" name="location-outline" color="primary"></ion-icon>
+        <ion-label>
+          <h2>{{ loc.nome }}</h2>
+          <p>{{ loc.email || 'E-mail nao informado' }}</p>
+
+          <ng-container *ngIf="loc.hasLocation; else semLocalizacao">
+            <p>
+              <b>Coordenadas:</b>
+              {{ loc.latitude | number:'1.6-6' }}, {{ loc.longitude | number:'1.6-6' }}
+            </p>
+            <p *ngIf="loc.accuracy !== null">
+              Precisao aproximada: {{ loc.accuracy | number:'1.0-0' }}m
+            </p>
+          </ng-container>
+
+          <ng-template #semLocalizacao>
+            <p *ngIf="loc.geolocalizacaoConsentida">
+              Aguardando o usuario fazer login, permitir a localizacao no navegador e manter o app aberto.
+            </p>
+            <p *ngIf="!loc.geolocalizacaoConsentida">
+              Usuario ainda nao tem consentimento de geolocalizacao ativo.
+            </p>
+          </ng-template>
+
+          <div class="queijo-meta">
+            <ion-badge [color]="getCorStatusLocalizacao(loc)">
+              {{ getStatusLocalizacao(loc) }}
+            </ion-badge>
+            <ion-badge *ngIf="loc.source" color="medium">
+              {{ getOrigemLocalizacao(loc) }}
+            </ion-badge>
+            <ion-badge color="medium">{{ formatarDataLocalizacao(loc.capturedAt) }}</ion-badge>
+          </div>
+        </ion-label>
+      </ion-item>
+    </ion-list>
+  </section>
+
+  <ion-searchbar
+    placeholder="Buscar queijo..."
+    [(ngModel)]="termoBusca"
+    (ionInput)="buscarQueijos()"
+    debounce="300">
+  </ion-searchbar>
+
+  <ion-list lines="full">
+    <ion-item *ngIf="queijosExibidos.length === 0">
+      <ion-icon slot="start" name="search-outline" color="medium"></ion-icon>
+      <ion-label color="medium">Nenhum queijo cadastrado.</ion-label>
+    </ion-item>
+
+    <ion-item *ngFor="let queijo of queijosExibidos">
+      <ion-thumbnail slot="start">
+        <img *ngIf="queijo.imagemUrl" [src]="queijo.imagemUrl" [alt]="queijo.nome">
+        <ion-icon *ngIf="!queijo.imagemUrl" name="nutrition-outline"></ion-icon>
+      </ion-thumbnail>
+
+      <ion-label>
+        <h2>{{ queijo.nome }}</h2>
+        <p *ngIf="queijo.descricao">{{ queijo.descricao }}</p>
+        <div class="queijo-meta">
+          <ion-badge *ngIf="queijo.tipo" color="primary">{{ queijo.tipo }}</ion-badge>
+          <ion-badge *ngIf="queijo.origem" color="medium">{{ queijo.origem }}</ion-badge>
+        </div>
+        <p *ngIf="queijo.informacaoNutricional">
+          <b>Info:</b> {{ queijo.informacaoNutricional }}
+        </p>
+      </ion-label>
+
+      <ion-buttons slot="end">
+        <ion-button fill="clear" color="warning" (click)="editarQueijo(queijo)">
+          <ion-icon slot="icon-only" name="create-outline"></ion-icon>
+        </ion-button>
+        <ion-button fill="clear" color="danger" (click)="excluirQueijo(queijo.id)">
+          <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+        </ion-button>
+      </ion-buttons>
+    </ion-item>
+  </ion-list>
+</ion-content>

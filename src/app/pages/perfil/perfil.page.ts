@@ -193,7 +193,13 @@ export class PerfilPage implements OnInit {
       message: 'Deseja encerrar sua sessão?',
       buttons: [
         { text: 'Cancelar', role: 'cancel' },
-        { text: 'Sair', handler: () => { localStorage.removeItem('token'); this.navCtrl.navigateRoot('/login'); } }
+        {
+          text: 'Sair',
+          handler: () => {
+            localStorage.removeItem('token');
+            this.navCtrl.navigateRoot('/login');
+          }
+        }
       ]
     });
     await alert.present();
@@ -233,7 +239,10 @@ export class PerfilPage implements OnInit {
           role: 'destructive',
           handler: () => {
             this.http.delete(`${this.API_URL}/delete-me`, { headers: this.getHeaders() }).subscribe({
-              next: () => { localStorage.removeItem('token'); this.navCtrl.navigateRoot('/login'); },
+              next: () => {
+                localStorage.removeItem('token');
+                this.navCtrl.navigateRoot('/login');
+              },
               error: (err) => this.showToast(err.error?.message || 'Erro ao excluir conta.', 'danger')
             });
           }

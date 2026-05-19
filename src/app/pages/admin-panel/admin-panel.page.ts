@@ -19,9 +19,10 @@ import {
   personCircleOutline, pieChartOutline, checkmarkCircleOutline,
   createOutline, saveOutline, removeCircleOutline, addCircleOutline,
   schoolOutline, timeOutline, checkmarkDoneOutline,
-  cameraOutline, logOutOutline
+  cameraOutline, logOutOutline, nutritionOutline
 } from 'ionicons/icons';
 import { Chart, registerables } from 'chart.js';
+import { LocationTrackingService } from '../../services/location-tracking.service';
 
 Chart.register(...registerables);
 
@@ -56,6 +57,7 @@ interface Estatisticas {
   meses?: string[];
   contagem?: number[];
   aprovados?: number;
+  pendentes?: number;
 }
 
 @Component({
@@ -146,7 +148,8 @@ export class AdminPanelPage implements OnInit {
     private menuCtrl: MenuController,
     private toastCtrl: ToastController,
     private alertCtrl: AlertController,
-    private loadingCtrl: LoadingController
+    private loadingCtrl: LoadingController,
+    private locationTracking: LocationTrackingService
   ) {
     addIcons({
       menu, barChartOutline, checkmarkCircle, trash,
@@ -156,7 +159,7 @@ export class AdminPanelPage implements OnInit {
       personCircleOutline, pieChartOutline, checkmarkCircleOutline,
       createOutline, saveOutline, removeCircleOutline, addCircleOutline,
       schoolOutline, timeOutline, checkmarkDoneOutline,
-      cameraOutline, logOutOutline
+      cameraOutline, logOutOutline, nutritionOutline
     });
   }
 
@@ -280,6 +283,7 @@ export class AdminPanelPage implements OnInit {
         {
           text: 'Sair',
           handler: async () => {
+            this.locationTracking.stopTracking();
             localStorage.removeItem('token');
             await this.menuCtrl.close();
             await this.router.navigate(['/login']);
@@ -432,6 +436,11 @@ export class AdminPanelPage implements OnInit {
   async abrirPaginaPermissoes() {
     await this.menuCtrl.close();
     await this.router.navigate(['/admin-permissoes']);
+  }
+
+  async abrirPaginaQueijos() {
+    await this.menuCtrl.close();
+    await this.router.navigate(['/admin-queijos']);
   }
 
   // ----- CRIAR -----
@@ -765,27 +774,54 @@ export class AdminPanelPage implements OnInit {
 
       const ctx = this.graficoCanvas.nativeElement;
       const ehBarras = this.graficoSelecionado === 'barras';
+      const comPermissao = this.dadosEstatisticos?.aprovados ?? this.estudantesCrud.filter(est => est.acessoAtivo).length;
+      const semPermissao = this.dadosEstatisticos?.pendentes ?? this.estudantesCrud.filter(est => !est.acessoAtivo).length;
+      const totalPermissoes = comPermissao + semPermissao;
+      const calcularPercentual = (valor: number) =>
+        totalPermissoes > 0 ? Number(((valor / totalPermissoes) * 100).toFixed(1)) : 0;
+      const percentuais = [
+        calcularPercentual(comPermissao),
+        calcularPercentual(semPermissao)
+      ];
+      const quantidades = [comPermissao, semPermissao];
 
       this.chart = new Chart(ctx, {
         type: ehBarras ? 'bar' : 'pie',
         data: {
-          labels: ehBarras
-            ? ['Estudantes (CRUD)', 'Lixeira', 'Pendentes']
-            : ['Aprovados', 'Pendentes'],
+          labels: ['Com permissão', 'Sem permissão'],
           datasets: [{
-            label: 'Visão Geral',
-            data: ehBarras
-              ? [this.estudantesCrud.length, this.lixeira.length, this.pendentes.length]
-              : [this.estudantesCrud.length, this.pendentes.length],
-            backgroundColor: ['#3880ff', '#eb445a', '#ffc409'],
+            label: 'Permissões (%)',
+            data: percentuais,
+            backgroundColor: ['#3880ff', '#eb445a'],
             borderRadius: ehBarras ? 6 : 0
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          scales: ehBarras ? {
+            y: {
+              beginAtZero: true,
+              max: 100,
+              ticks: {
+                callback: (value) => `${value}%`
+              }
+            }
+          } : undefined,
           plugins: {
-            legend: { position: 'bottom' }
+            legend: { position: 'bottom' },
+            title: {
+              display: true,
+              text: 'Percentual de permissões de acesso'
+            },
+            tooltip: {
+              callbacks: {
+                label: (context) => {
+                  const index = context.dataIndex;
+                  return `${context.label}: ${percentuais[index]}% (${quantidades[index]} usuário(s))`;
+                }
+              }
+            }
           }
         }
       });

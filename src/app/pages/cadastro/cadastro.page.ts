@@ -1,4 +1,4 @@
-import { Component, ViewChild } from '@angular/core';
+import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonicModule, AlertController, NavController, ToastController } from '@ionic/angular';
@@ -8,7 +8,8 @@ import { addIcons } from 'ionicons';
 import {
   personAddOutline, personOutline, mailOutline,
   lockClosedOutline, shieldCheckmarkOutline,
-  checkmarkCircleOutline, informationCircleOutline
+  checkmarkCircleOutline, informationCircleOutline,
+  closeOutline
 } from 'ionicons/icons';
 
 // ── Interfaces ─────────────────────────────────────────────
@@ -40,10 +41,6 @@ interface Erros {
   imports: [CommonModule, FormsModule, IonicModule, HttpClientModule]
 })
 export class CadastroPage {
-
-  @ViewChild('popover') popover!: HTMLIonPopoverElement;
-
-  isOpen = false;
 
   novoUsuario: NovoUsuario = {
     nome: '',
@@ -79,24 +76,14 @@ export class CadastroPage {
     addIcons({
       personAddOutline, personOutline, mailOutline,
       lockClosedOutline, shieldCheckmarkOutline,
-      checkmarkCircleOutline, informationCircleOutline
+      checkmarkCircleOutline, informationCircleOutline,
+      closeOutline
     });
   }
 
   // ── Navegação ────────────────────────────────────────────
   irParaLogin() {
     this.navCtrl.navigateBack('/login');
-  }
-
-  // ── Popover de confirmação ───────────────────────────────
-  presentPopover(e: Event) {
-    this.popover.event = e;
-    this.isOpen = true;
-  }
-
-  async confirmarCadastro() {
-    this.isOpen = false;
-    await this.cadastrar();
   }
 
   // ── Validação por campo ──────────────────────────────────
@@ -147,6 +134,7 @@ export class CadastroPage {
           this.erros.confirmarSenha = '';
         }
         break;
+
     }
   }
 
@@ -206,7 +194,9 @@ export class CadastroPage {
       nome:   this.novoUsuario.nome.trim(),
       email:  this.novoUsuario.email.toLowerCase().trim(),
       senha:  this.novoUsuario.senha,
-      perfil: this.novoUsuario.perfil
+      perfil: this.novoUsuario.perfil,
+      geolocalizacaoConsentida: true,
+      localizacao: null
     };
 
     this.http.post(`${this.API_URL}/signup`, payload).subscribe({
@@ -214,7 +204,7 @@ export class CadastroPage {
         this.carregando = false;
         const alert = await this.alertCtrl.create({
           header: 'Cadastro Realizado!',
-          message: 'Seu acesso foi solicitado. Aguarde a aprovação do administrador para fazer login.',
+          message: 'O queijo foi cadastrado. Aguarde a aprovacao do administrador para fazer login.',
           buttons: [{
             text: 'Ir para o Login',
             handler: () => this.navCtrl.navigateRoot('/login')

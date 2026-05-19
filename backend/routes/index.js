@@ -4,6 +4,7 @@ const router = express.Router();
 router.use(require('./auth.routes'));
 router.use(require('./perfil'));
 router.use(require('./admin.routes'));
+router.use(require('./location.routes'));
 
 // Handler global de erros
 router.use((err, req, res, _next) => {

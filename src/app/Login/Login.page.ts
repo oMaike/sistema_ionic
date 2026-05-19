@@ -3,6 +3,15 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClientModule, HttpClient } from '@angular/common/http';
 import { IonicModule, AlertController, NavController } from '@ionic/angular';
+import { addIcons } from 'ionicons';
+import {
+  keyOutline,
+  lockClosedOutline,
+  logInOutline,
+  mailOutline,
+  personAddOutline
+} from 'ionicons/icons';
+import { LocationTrackingService } from '../services/location-tracking.service';
 
 @Component({
   selector: 'app-Login',
@@ -16,14 +25,24 @@ export class LoginPage {
     email: '',
     senha: ''
   };
+  isLoading = false;
 
   private readonly API_URL = 'http://localhost:9090/user';
 
   constructor(
     private http: HttpClient,
     private alertController: AlertController,
-    private navCtrl: NavController
-  ) {}
+    private navCtrl: NavController,
+    private locationTracking: LocationTrackingService
+  ) {
+    addIcons({
+      keyOutline,
+      lockClosedOutline,
+      logInOutline,
+      mailOutline,
+      personAddOutline
+    });
+  }
 
   recuperarSenha() {
     this.navCtrl.navigateForward('/forgot-password');
@@ -34,55 +53,67 @@ export class LoginPage {
   }
 
   fazerLogin() {
-    if (!this.usuario.email || !this.usuario.senha) {
+    if (this.isLoading) return;
+
+    const email = this.usuario.email.trim().toLowerCase();
+    const senha = this.usuario.senha;
+
+    if (!email || !senha) {
       this.exibirMensagem('Erro', 'Preencha todos os campos.');
       return;
     }
 
+    this.isLoading = true;
+
     this.http.post(`${this.API_URL}/login`, {
-      email: this.usuario.email,
-      senha: this.usuario.senha   // ✅ CORRIGIDO: era "password"
+      email,
+      senha
     }).subscribe({
       next: (res: any) => {
-        console.log('✅ Resposta do login:', res); // DEBUG
-
         if (!res.token) {
+          this.isLoading = false;
           this.exibirMensagem('Erro', 'Token não recebido.');
           return;
         }
 
         localStorage.setItem('token', res.token);
+        this.locationTracking.startTrackingFromToken(res.token);
 
         try {
           const base64Url = res.token.split('.')[1];
           const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
           const payloadToken = JSON.parse(window.atob(base64));
 
-          //DEBUG: Exibir o conteúdo do token decodificado para verificar o perfil
-          console.log('Token decodificado:', payloadToken); // DEBUG
-          console.log(' Perfil:', payloadToken.perfil);      // DEBUG
-
           const perfil = payloadToken.perfil
             ? payloadToken.perfil.toLowerCase()
             : 'user1';
 
           if (perfil === 'admin') {
-            this.navCtrl.navigateRoot('/admin-panel');
+            this.navCtrl.navigateRoot('/admin-panel').finally(() => {
+              this.isLoading = false;
+            });
           } else {
-            this.navCtrl.navigateRoot('/perfil');
+            this.navCtrl.navigateRoot('/perfil').finally(() => {
+              this.isLoading = false;
+            });
           }
 
         } catch (error) {
-          console.error('❌ Erro ao decodificar token:', error); // DEBUG
-          this.navCtrl.navigateRoot('/perfil');
+          this.navCtrl.navigateRoot('/perfil').finally(() => {
+            this.isLoading = false;
+          });
         }
       },
       error: (err) => {
-        console.error('❌ Erro HTTP:', err.status, err.error); // DEBUG
+        this.isLoading = false;
 
-        let mensagem = 'Erro ao conectar com o servidor.';
+        let mensagem = err.error?.message || 'Erro ao conectar com o servidor.';
         if (err.status === 401) {
           mensagem = 'E-mail/Senha incorretos ou conta aguardando aprovação.';
+        } else if (err.status === 403) {
+          mensagem = err.error?.message || 'Conta indisponível. Aguarde aprovação ou fale com o administrador.';
+        } else if (err.status === 400) {
+          mensagem = err.error?.message || 'Informe um e-mail e senha válidos.';
         } else if (err.status === 0) {
           mensagem = 'Sem conexão com o servidor. Verifique se o backend está rodando.';
         }

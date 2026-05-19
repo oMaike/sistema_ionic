@@ -44,54 +44,6 @@
       </ion-item>
     </ion-list>
 
-    <!-- SEÇÃO 2: Alunos no Banco -->
-    <ion-list lines="full">
-      <ion-list-header>
-        <ion-label color="success">Alunos no Banco</ion-label>
-        <ion-button
-          *ngIf="!mostrarEstudantes"
-          size="small"
-          fill="outline"
-          color="success"
-          [disabled]="isLoadingEstudantes"
-          (click)="liberarDadosBanco()">
-          <ion-icon slot="start" name="cloud-download-outline"></ion-icon>
-          {{ isLoadingEstudantes ? 'Carregando...' : 'Carregar' }}
-        </ion-button>
-      </ion-list-header>
-
-      <ng-container *ngIf="isLoadingEstudantes">
-        <ion-item *ngFor="let i of [1,2,3]">
-          <ion-label>
-            <ion-skeleton-text animated style="width: 60%; height: 14px;"></ion-skeleton-text>
-            <ion-skeleton-text animated style="width: 40%; height: 12px; margin-top: 6px;"></ion-skeleton-text>
-          </ion-label>
-        </ion-item>
-      </ng-container>
-
-      <ng-container *ngIf="mostrarEstudantes && !isLoadingEstudantes">
-        <ion-searchbar
-          placeholder="Buscar aluno..."
-          [(ngModel)]="termoBusca"
-          (ionInput)="buscarManual()"
-          debounce="300">
-        </ion-searchbar>
-
-        <ion-item *ngIf="estudantesExibidos.length === 0">
-          <ion-icon slot="start" name="search-outline" color="medium"></ion-icon>
-          <ion-label color="medium">Nenhum aluno encontrado.</ion-label>
-        </ion-item>
-
-        <ion-item *ngFor="let est of estudantesExibidos">
-          <ion-label>
-            <h2 style="font-weight: bold;">{{ est.nome }}</h2>
-            <p>ID: {{ est.id }} | {{ est.email }}</p>
-            <p><b>Disciplinas:</b> {{ est.disciplinas || 'Nenhuma' }}</p>
-          </ion-label>
-        </ion-item>
-      </ng-container>
-    </ion-list>
-
     <!-- Acesso aos gráficos -->
     <ion-list lines="full">
       <ion-item button (click)="setOpen(true)">
@@ -108,14 +60,16 @@
         <ion-label>Permissões</ion-label>
         <ion-icon slot="end" name="chevron-forward-outline" color="medium"></ion-icon>
       </ion-item>
+      <ion-item button (click)="abrirPaginaQueijos()">
+        <ion-icon slot="start" name="nutrition-outline" color="primary"></ion-icon>
+        <ion-label>Queijos</ion-label>
+        <ion-icon slot="end" name="chevron-forward-outline" color="medium"></ion-icon>
+      </ion-item>
     </ion-list>
 
   </ion-content>
 </ion-menu>
 
-<!-- ============================================================ -->
-<!-- CONTEÚDO PRINCIPAL -->
-<!-- ============================================================ -->
 <div class="ion-page" id="main-content">
   <ion-header>
     <ion-toolbar color="primary">
@@ -126,322 +80,47 @@
           </ion-button>
         </ion-menu-toggle>
       </ion-buttons>
-      <ion-title>Painel Admin</ion-title>
       <ion-buttons slot="end" class="admin-toolbar-actions">
-        <ion-button
-          class="admin-profile-button"
-          fill="clear"
-          title="Alterar foto de perfil"
-          (click)="adminFotoInput.click()">
-          <ion-avatar>
-            <img
-              *ngIf="fotoPerfilUrl"
-              [src]="fotoPerfilUrl"
-              alt="Foto de perfil">
-            <span *ngIf="!fotoPerfilUrl" class="admin-profile-initials">{{ getIniciaisAdmin() }}</span>
-            <ion-icon name="camera-outline" class="admin-profile-camera"></ion-icon>
-          </ion-avatar>
-        </ion-button>
-        <input
-          #adminFotoInput
-          type="file"
-          accept="image/*"
-          class="admin-file-input"
-          (change)="selecionarFotoPerfil($event)">
-        <ion-button
-          class="admin-logout-button"
-          fill="clear"
-          title="Sair"
-          (click)="logout()">
+        <ion-button class="admin-logout-button" (click)="logout()" title="Sair">
           <ion-icon slot="icon-only" name="log-out-outline"></ion-icon>
         </ion-button>
       </ion-buttons>
     </ion-toolbar>
   </ion-header>
 
-  <ion-content class="ion-padding">
+  <ion-content class="admin-empty-content"></ion-content>
 
-    <!-- ============================================================ -->
-    <!-- CRUD PRINCIPAL DE ESTUDANTES                                -->
-    <!-- ============================================================ -->
-    <ion-card>
-      <ion-card-header>
-        <ion-card-subtitle>Gestão de Estudantes</ion-card-subtitle>
-        <ion-card-title>
-          <span>Cadastro de Alunos</span>
-        </ion-card-title>
-
-        <!-- Botões de ação -->
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 12px; flex-wrap: wrap; gap: 8px;">
-          <ion-button
-            size="small"
-            fill="outline"
-            color="primary"
-            (click)="abrirModalCriarAluno()">
-            <ion-icon slot="start" name="add-outline"></ion-icon>
-            Novo Aluno
-          </ion-button>
+  <!-- MODAL DE GRÁFICOS DO SISTEMA -->
+  <ion-modal [isOpen]="isModalOpen" (didPresent)="chamarGraficosIniciais()" (didDismiss)="setOpen(false)">
+    <ng-template>
+      <ion-header>
+        <ion-toolbar color="tertiary">
+          <ion-title>Estatísticas do Sistema</ion-title>
+          <ion-buttons slot="end">
+            <ion-button (click)="setOpen(false)">
+              <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+            </ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+      <ion-content class="ion-padding">
+        <ion-segment [(ngModel)]="graficoSelecionado" (ionChange)="trocarGrafico()">
+          <ion-segment-button value="barras">
+            <ion-icon name="bar-chart-outline"></ion-icon>
+            <ion-label>Barras</ion-label>
+          </ion-segment-button>
+          <ion-segment-button value="pizza">
+            <ion-icon name="pie-chart-outline"></ion-icon>
+            <ion-label>Pizza</ion-label>
+          </ion-segment-button>
+        </ion-segment>
+        <div *ngIf="isLoading" class="ion-margin-top" style="height: 350px; display: flex; align-items: center; justify-content: center;">
+          <ion-spinner name="circles" color="tertiary" style="transform: scale(2);"></ion-spinner>
         </div>
-
-      </ion-card-header>
-
-      <ion-card-content>
-
-        <!-- Barra de busca do CRUD local -->
-        <ion-searchbar
-          placeholder="Buscar aluno no CRUD..."
-          [(ngModel)]="termoBuscaCrud"
-          (ionInput)="buscarManualCrud()"
-          debounce="300">
-        </ion-searchbar>
-
-        <!-- Lista de alunos do CRUD -->
-        <ion-list lines="full">
-
-          <ion-item *ngIf="estudantesCrudExibidos.length === 0">
-            <ion-icon slot="start" name="search-outline" color="medium"></ion-icon>
-            <ion-label color="medium">Nenhum aluno no cadastro local.</ion-label>
-          </ion-item>
-
-          <ion-item
-            *ngFor="let est of estudantesCrudExibidos"
-            [class.item-editing]="est.id === editandoId"
-            [class.item-desativado]="!est.acessoAtivo">
-
-            <!-- Modo de edição inline -->
-            <ng-container *ngIf="est.id === editandoId; else modoVisualizacao">
-              <ion-label>
-                <ion-input [(ngModel)]="editNome" placeholder="Nome" style="font-weight: bold;"></ion-input>
-                <ion-input [(ngModel)]="editEmail" placeholder="E-mail" type="email"></ion-input>
-              </ion-label>
-              <ion-buttons slot="end">
-                <ion-button color="success" (click)="salvarEdicao(est.id)">
-                  <ion-icon slot="icon-only" name="checkmark-outline"></ion-icon>
-                </ion-button>
-                <ion-button color="medium" (click)="cancelarEdicao()">
-                  <ion-icon slot="icon-only" name="close-outline"></ion-icon>
-                </ion-button>
-              </ion-buttons>
-            </ng-container>
-
-            <!-- Modo de visualização -->
-            <ng-template #modoVisualizacao>
-              <ion-label>
-                <h2 style="font-weight: bold;">{{ est.nome }}</h2>
-                <p>{{ est.email }}</p>
-                <p>
-                  <ion-badge color="primary">{{ contarDisciplinas(est) }} disciplina(s)</ion-badge>
-                  <ion-badge *ngIf="!est.acessoAtivo" color="medium" style="margin-left: 6px;">Sem acesso</ion-badge>
-                </p>
-              </ion-label>
-              <ion-buttons slot="end">
-                <ion-button fill="clear" color="tertiary" (click)="toggleDisciplinas(est.id)" title="Ver Disciplinas">
-                  <ion-icon slot="icon-only" [name]="alunoExpandido === est.id ? 'remove-circle-outline' : 'add-circle-outline'"></ion-icon>
-                </ion-button>
-                <ion-button fill="clear" color="secondary" (click)="abrirGraficoAluno(est)" title="Ver Gráfico do Aluno">
-                  <ion-icon slot="icon-only" name="bar-chart-outline"></ion-icon>
-                </ion-button>
-                <ion-button fill="clear" color="warning" (click)="iniciarEdicao(est)">
-                  <ion-icon slot="icon-only" name="create-outline"></ion-icon>
-                </ion-button>
-                <ion-button fill="clear" color="danger" (click)="excluirAlunoCrud(est.id)">
-                  <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
-                </ion-button>
-              </ion-buttons>
-            </ng-template>
-
-          </ion-item>
-
-          <!-- SUB-CRUD DE DISCIPLINAS -->
-          <ng-container *ngFor="let est of estudantesCrudExibidos">
-            <div *ngIf="alunoExpandido === est.id" class="disciplinas-container ion-padding-start ion-padding-end">
-              <ion-card color="light" style="margin: 4px 0 8px 0;">
-                <ion-card-header style="padding-bottom: 4px;">
-                  <ion-card-title style="font-size: 15px; color: var(--ion-color-primary);">
-                    <ion-icon name="school-outline" style="vertical-align: middle; margin-right: 6px;"></ion-icon>
-                    Disciplinas de {{ est.nome }}
-                  </ion-card-title>
-                </ion-card-header>
-                <ion-card-content>
-                  <ion-item lines="none">
-                    <ion-input [(ngModel)]="novaDisciplinaNome" placeholder="Nome da disciplina" style="flex: 1;"></ion-input>
-                    <ion-select [(ngModel)]="novaDisciplinaStatus" placeholder="Status" style="max-width: 140px;">
-                      <ion-select-option value="cursando">Cursando</ion-select-option>
-                      <ion-select-option value="concluida">Concluída</ion-select-option>
-                    </ion-select>
-                    <ion-button slot="end" size="small" color="primary" (click)="adicionarDisciplina(est.id)">
-                      <ion-icon slot="icon-only" name="add-outline"></ion-icon>
-                    </ion-button>
-                  </ion-item>
-
-                  <ion-list-header style="padding-left: 0;">
-                    <ion-label color="primary" style="font-size: 13px; font-weight: bold;">
-                      <ion-icon name="time-outline" style="vertical-align: middle; margin-right: 4px;"></ion-icon>
-                      Cursando
-                    </ion-label>
-                  </ion-list-header>
-
-                  <ion-item *ngFor="let disc of getDisciplinasPorStatus(est.id, 'cursando')" lines="inset" style="--min-height: 40px;">
-                    <ion-badge slot="start" color="primary" style="margin-right: 8px;">Em curso</ion-badge>
-                    <ion-label>{{ disc.nome }}</ion-label>
-                    <ion-buttons slot="end">
-                      <ion-button fill="clear" color="success" size="small" (click)="concluirDisciplina(est.id, disc.id)">
-                        <ion-icon slot="icon-only" name="checkmark-done-outline"></ion-icon>
-                      </ion-button>
-                      <ion-button fill="clear" color="danger" size="small" (click)="removerDisciplina(est.id, disc.id)">
-                        <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
-                      </ion-button>
-                    </ion-buttons>
-                  </ion-item>
-
-                  <ion-item *ngIf="getDisciplinasPorStatus(est.id, 'cursando').length === 0" lines="none">
-                    <ion-label color="medium" style="font-size: 13px; font-style: italic;">Nenhuma disciplina em andamento.</ion-label>
-                  </ion-item>
-
-                  <ion-list-header style="padding-left: 0; margin-top: 8px;">
-                    <ion-label color="success" style="font-size: 13px; font-weight: bold;">
-                      <ion-icon name="checkmark-circle-outline" style="vertical-align: middle; margin-right: 4px;"></ion-icon>
-                      Concluídas
-                    </ion-label>
-                  </ion-list-header>
-
-                  <ion-item *ngFor="let disc of getDisciplinasPorStatus(est.id, 'concluida')" lines="inset" style="--min-height: 40px;">
-                    <ion-badge slot="start" color="success" style="margin-right: 8px;">Concluída</ion-badge>
-                    <ion-label>{{ disc.nome }}</ion-label>
-                    <ion-buttons slot="end">
-                      <ion-button fill="clear" color="danger" size="small" (click)="removerDisciplina(est.id, disc.id)">
-                        <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
-                      </ion-button>
-                    </ion-buttons>
-                  </ion-item>
-
-                  <ion-item *ngIf="getDisciplinasPorStatus(est.id, 'concluida').length === 0" lines="none">
-                    <ion-label color="medium" style="font-size: 13px; font-style: italic;">Nenhuma disciplina concluída.</ion-label>
-                  </ion-item>
-
-                </ion-card-content>
-              </ion-card>
-            </div>
-          </ng-container>
-
-        </ion-list>
-
-        <ion-note *ngIf="lixeira.length > 0" color="medium" style="display: block; padding: 8px 16px;">
-          <ion-icon name="trash-outline"></ion-icon>
-          {{ lixeira.length }} registro(s) na lixeira local
-        </ion-note>
-
-      </ion-card-content>
-    </ion-card>
-
-    <!-- MODAL: CRIAR / EDITAR ALUNO -->
-    <ion-modal [isOpen]="isModalCriarAberto" (didDismiss)="fecharModalCriar()">
-      <ng-template>
-        <ion-header>
-          <ion-toolbar color="primary">
-            <ion-title>{{ modoEdicaoModal ? 'Editar Aluno' : 'Novo Aluno' }}</ion-title>
-            <ion-buttons slot="end">
-              <ion-button (click)="fecharModalCriar()">
-                <ion-icon slot="icon-only" name="close-outline"></ion-icon>
-              </ion-button>
-            </ion-buttons>
-          </ion-toolbar>
-        </ion-header>
-        <ion-content class="ion-padding">
-          <ion-item>
-            <ion-input label="Nome Completo" labelPlacement="floating" [(ngModel)]="formNome" placeholder="Ex: Nome Sobrenome" (ionInput)="filtrarInput($event)"></ion-input>
-          </ion-item>
-          <ion-item>
-            <ion-input label="E-mail" labelPlacement="floating" [(ngModel)]="formEmail" type="email" placeholder="Ex: nome@email.com"></ion-input>
-          </ion-item>
-          <ion-button expand="block" class="ion-margin-top" (click)="salvarAluno()">
-            <ion-icon slot="start" name="save-outline"></ion-icon>
-            {{ modoEdicaoModal ? 'Salvar Alterações' : 'Cadastrar Aluno' }}
-          </ion-button>
-        </ion-content>
-      </ng-template>
-    </ion-modal>
-
-    <!-- MODAL: GRÁFICO DO ALUNO INDIVIDUAL -->
-    <ion-modal [isOpen]="isModalGraficoAlunoAberto" (didPresent)="gerarGraficoAluno()" (didDismiss)="fecharGraficoAluno()">
-      <ng-template>
-        <ion-header>
-          <ion-toolbar color="secondary">
-            <ion-title>Gráfico — {{ alunoSelecionadoGrafico?.nome }}</ion-title>
-            <ion-buttons slot="end">
-              <ion-button (click)="fecharGraficoAluno()">
-                <ion-icon slot="icon-only" name="close-outline"></ion-icon>
-              </ion-button>
-            </ion-buttons>
-          </ion-toolbar>
-        </ion-header>
-        <ion-content class="ion-padding">
-          <ion-segment [(ngModel)]="graficoAlunoTipo" (ionChange)="gerarGraficoAluno()">
-            <ion-segment-button value="pizza">
-              <ion-icon name="pie-chart-outline"></ion-icon>
-              <ion-label>Pizza</ion-label>
-            </ion-segment-button>
-            <ion-segment-button value="barras">
-              <ion-icon name="bar-chart-outline"></ion-icon>
-              <ion-label>Barras</ion-label>
-            </ion-segment-button>
-          </ion-segment>
-          <div class="ion-margin-top" style="position: relative; height: 320px;">
-            <canvas #graficoAlunoCanvas></canvas>
-          </div>
-          <ion-list *ngIf="alunoSelecionadoGrafico" class="ion-margin-top" lines="full">
-            <ion-list-header>
-              <ion-label color="secondary">Resumo</ion-label>
-            </ion-list-header>
-            <ion-item>
-              <ion-icon slot="start" name="time-outline" color="primary"></ion-icon>
-              <ion-label>Cursando</ion-label>
-              <ion-badge slot="end" color="primary">{{ getDisciplinasPorStatus(alunoSelecionadoGrafico.id, 'cursando').length }}</ion-badge>
-            </ion-item>
-            <ion-item>
-              <ion-icon slot="start" name="checkmark-circle-outline" color="success"></ion-icon>
-              <ion-label>Concluídas</ion-label>
-              <ion-badge slot="end" color="success">{{ getDisciplinasPorStatus(alunoSelecionadoGrafico.id, 'concluida').length }}</ion-badge>
-            </ion-item>
-          </ion-list>
-        </ion-content>
-      </ng-template>
-    </ion-modal>
-
-    <!-- MODAL DE GRÁFICOS DO SISTEMA -->
-    <ion-modal [isOpen]="isModalOpen" (didPresent)="chamarGraficosIniciais()" (didDismiss)="setOpen(false)">
-      <ng-template>
-        <ion-header>
-          <ion-toolbar color="tertiary">
-            <ion-title>Estatísticas do Sistema</ion-title>
-            <ion-buttons slot="end">
-              <ion-button (click)="setOpen(false)">
-                <ion-icon slot="icon-only" name="close-outline"></ion-icon>
-              </ion-button>
-            </ion-buttons>
-          </ion-toolbar>
-        </ion-header>
-        <ion-content class="ion-padding">
-          <ion-segment [(ngModel)]="graficoSelecionado" (ionChange)="trocarGrafico()">
-            <ion-segment-button value="barras">
-              <ion-icon name="bar-chart-outline"></ion-icon>
-              <ion-label>Barras</ion-label>
-            </ion-segment-button>
-            <ion-segment-button value="pizza">
-              <ion-icon name="pie-chart-outline"></ion-icon>
-              <ion-label>Pizza</ion-label>
-            </ion-segment-button>
-          </ion-segment>
-          <div *ngIf="isLoading" class="ion-margin-top" style="height: 350px; display: flex; align-items: center; justify-content: center;">
-            <ion-spinner name="circles" color="tertiary" style="transform: scale(2);"></ion-spinner>
-          </div>
-          <div class="ion-margin-top" [style.visibility]="isLoading ? 'hidden' : 'visible'" [style.height]="'350px'">
-            <canvas #graficoCanvas></canvas>
-          </div>
-        </ion-content>
-      </ng-template>
-    </ion-modal>
-
-  </ion-content>
+        <div class="ion-margin-top" [style.visibility]="isLoading ? 'hidden' : 'visible'" [style.height]="'350px'">
+          <canvas #graficoCanvas></canvas>
+        </div>
+      </ion-content>
+    </ng-template>
+  </ion-modal>
 </div>
-
